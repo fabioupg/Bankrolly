@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "PokerLedger",
+    "slug": "pokerledger",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "pokerledger",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0b0f0d"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pokerledger.app",
+      "buildNumber": "1"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0b0f0d"
+      },
+      "package": "com.pokerledger.app",
+      "versionCode": 1
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": false
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "651f5960-0c6f-4e80-8a87-e6d63f922f3f"
+      }
+    },
+    "owner": "fabio_upg"
+  }
+}
