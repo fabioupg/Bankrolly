@@ -21,6 +21,7 @@ interface SubscriptionState {
   customerInfo: CustomerInfo | null;
   offering: PurchasesOffering | null;
   loading: boolean;
+  lastError: string | null;
   init: (userId: string | null) => Promise<void>;
   identify: (userId: string | null) => Promise<void>;
   refresh: () => Promise<void>;
@@ -35,9 +36,10 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   customerInfo: null,
   offering: null,
   loading: false,
+  lastError: null,
 
   init: async (userId) => {
-    set({ loading: true });
+    set({ loading: true, lastError: null });
     try {
       await configurePurchases(userId);
       const [info, offering] = await Promise.all([fetchCustomerInfo(), fetchOfferings()]);
@@ -47,9 +49,14 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
         offering,
         isPro: hasProEntitlement(info),
         loading: false,
+        lastError: offering ? null : 'Offering "default" not loaded — check RevenueCat dashboard',
       });
-    } catch {
-      set({ ready: true, loading: false });
+    } catch (err) {
+      set({
+        ready: true,
+        loading: false,
+        lastError: (err as Error)?.message ?? 'Init failed',
+      });
     }
   },
 
@@ -61,8 +68,17 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
 
   refresh: async () => {
     if (!get().configurable) return;
-    const info = await fetchCustomerInfo();
-    set({ customerInfo: info, isPro: hasProEntitlement(info) });
+    try {
+      const [info, offering] = await Promise.all([fetchCustomerInfo(), fetchOfferings()]);
+      set({
+        customerInfo: info,
+        offering,
+        isPro: hasProEntitlement(info),
+        lastError: offering ? null : 'Offering "default" not loaded — check RevenueCat dashboard',
+      });
+    } catch (err) {
+      set({ lastError: (err as Error)?.message ?? 'Refresh failed' });
+    }
   },
 
   purchase: async (pkg) => {

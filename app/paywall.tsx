@@ -35,6 +35,8 @@ export default function PaywallScreen() {
   const configurable = useSubscriptionStore((s) => s.configurable);
   const loading = useSubscriptionStore((s) => s.loading);
   const refresh = useSubscriptionStore((s) => s.refresh);
+  const lastError = useSubscriptionStore((s) => s.lastError);
+  const [showDebug, setShowDebug] = useState(false);
 
   useEffect(() => {
     if (configurable) void refresh();
@@ -146,6 +148,30 @@ export default function PaywallScreen() {
         <Pressable onPress={onRestore} style={styles.restoreBtn} disabled={loading}>
           <Text style={styles.restoreLabel}>Restore purchases</Text>
         </Pressable>
+
+        <Pressable onPress={() => setShowDebug((s) => !s)} style={styles.debugToggle}>
+          <Text style={styles.debugToggleLabel}>{showDebug ? 'Hide debug' : 'Debug info'}</Text>
+        </Pressable>
+
+        {showDebug ? (
+          <View style={styles.debugBox}>
+            <Text style={styles.debugTitle}>Subscription debug</Text>
+            <Text style={styles.debugRow}>SDK configurable: {String(configurable)}</Text>
+            <Text style={styles.debugRow}>Offering loaded: {offering ? 'yes' : 'NO'}</Text>
+            <Text style={styles.debugRow}>Offering id: {offering?.identifier ?? '—'}</Text>
+            <Text style={styles.debugRow}>Monthly package: {monthly ? 'yes' : 'NO'}</Text>
+            <Text style={styles.debugRow}>Annual package: {yearly ? 'yes' : 'NO'}</Text>
+            <Text style={styles.debugRow}>Monthly product: {monthly?.product?.identifier ?? '—'}</Text>
+            <Text style={styles.debugRow}>Annual product: {yearly?.product?.identifier ?? '—'}</Text>
+            <Text style={styles.debugRow}>Is Pro: {String(isPro)}</Text>
+            {lastError ? (
+              <Text style={[styles.debugRow, { color: colors.loss }]}>Error: {lastError}</Text>
+            ) : null}
+            <Pressable onPress={refresh} style={styles.refreshBtn}>
+              <Text style={styles.refreshLabel}>Refresh from RevenueCat</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         <Text style={styles.footnote}>
           Auto-renews until cancelled. Cancel anytime in your Apple ID subscription settings.
@@ -356,5 +382,47 @@ const styles = StyleSheet.create({
   link: {
     color: colors.profit,
     textDecorationLine: 'underline',
+  },
+  debugToggle: {
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  debugToggleLabel: {
+    color: colors.textDim,
+    fontSize: typography.micro,
+    textDecorationLine: 'underline',
+  },
+  debugBox: {
+    backgroundColor: colors.bgElevated,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: 4,
+    marginTop: spacing.sm,
+  },
+  debugTitle: {
+    color: colors.text,
+    fontWeight: '700',
+    fontSize: typography.small,
+    marginBottom: 4,
+  },
+  debugRow: {
+    color: colors.textMuted,
+    fontSize: typography.micro,
+    fontFamily: 'monospace',
+  },
+  refreshBtn: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.borderStrong,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.sm,
+    alignSelf: 'flex-start',
+  },
+  refreshLabel: {
+    color: colors.text,
+    fontSize: typography.small,
+    fontWeight: '700',
   },
 });
