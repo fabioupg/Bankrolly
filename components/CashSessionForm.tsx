@@ -7,6 +7,9 @@ import { DateField } from '@/components/DateField';
 import { FormField } from '@/components/FormField';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { SectionTitle } from '@/components/SectionTitle';
+import { TripPicker } from '@/components/TripPicker';
+import { useCanAdd } from '@/hooks/useCanAdd';
+import { promptUpgrade } from '@/components/UpgradePrompt';
 import { useSessionStore } from '@/store/useSessionStore';
 import { useSettingsStore } from '@/store/useStatsStore';
 import {
@@ -28,6 +31,7 @@ interface FormState {
   hours: string;
   minutes: string;
   notes: string;
+  tripId: string | null;
 }
 
 function toForm(s?: CashSession): FormState {
@@ -42,6 +46,7 @@ function toForm(s?: CashSession): FormState {
       hours: '',
       minutes: '',
       notes: '',
+      tripId: null,
     };
   }
   return {
@@ -54,6 +59,7 @@ function toForm(s?: CashSession): FormState {
     hours: String(Math.floor(s.durationMinutes / 60)),
     minutes: String(s.durationMinutes % 60),
     notes: s.notes,
+    tripId: s.tripId ?? null,
   };
 }
 
@@ -71,6 +77,7 @@ export function CashSessionForm({ initial, mode, onSaved, footerContent }: Props
   const updateSession = useSessionStore((s) => s.update);
   const removeSession = useSessionStore((s) => s.remove);
   const currency = useSettingsStore((s) => s.currency);
+  const limit = useCanAdd('cash');
 
   const buyInNum = Number(form.buyIn) || 0;
   const cashOutNum = Number(form.cashOut) || 0;
@@ -105,6 +112,10 @@ export function CashSessionForm({ initial, mode, onSaved, footerContent }: Props
       Alert.alert('Check the form', err);
       return;
     }
+    if (mode === 'create' && !limit.canAdd) {
+      promptUpgrade('cash', limit.current, limit.limit);
+      return;
+    }
     setSubmitting(true);
     try {
       const payload = {
@@ -116,6 +127,7 @@ export function CashSessionForm({ initial, mode, onSaved, footerContent }: Props
         cashOut: Number(form.cashOut),
         durationMinutes,
         notes: form.notes.trim(),
+        tripId: form.tripId,
       };
       if (mode === 'edit' && initial) {
         await updateSession(initial.id, payload);
@@ -245,6 +257,12 @@ export function CashSessionForm({ initial, mode, onSaved, footerContent }: Props
             />
           </View>
         </View>
+
+        <TripPicker
+          value={form.tripId}
+          onChange={(id) => set('tripId', id)}
+          preferredDateIso={form.date.toISOString()}
+        />
 
         <FormField
           label="Notes"

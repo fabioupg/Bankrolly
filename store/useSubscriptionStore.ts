@@ -1,0 +1,105 @@
+import { create } from 'zustand';
+import type {
+  CustomerInfo,
+  PurchasesOffering,
+  PurchasesPackage,
+} from 'react-native-purchases';
+import {
+  Purchases,
+  configurePurchases,
+  fetchCustomerInfo,
+  fetchOfferings,
+  hasProEntitlement,
+  identifyPurchases,
+  isPurchasesConfigurable,
+} from '@/lib/revenuecat';
+
+interface SubscriptionState {
+  ready: boolean;
+  configurable: boolean;
+  isPro: boolean;
+  customerInfo: CustomerInfo | null;
+  offering: PurchasesOffering | null;
+  loading: boolean;
+  init: (userId: string | null) => Promise<void>;
+  identify: (userId: string | null) => Promise<void>;
+  refresh: () => Promise<void>;
+  purchase: (pkg: PurchasesPackage) => Promise<{ success: boolean; userCanceled: boolean; error?: string }>;
+  restore: () => Promise<{ success: boolean; error?: string }>;
+}
+
+export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
+  ready: false,
+  configurable: isPurchasesConfigurable(),
+  isPro: false,
+  customerInfo: null,
+  offering: null,
+  loading: false,
+
+  init: async (userId) => {
+    set({ loading: true });
+    try {
+      await configurePurchases(userId);
+      const [info, offering] = await Promise.all([fetchCustomerInfo(), fetchOfferings()]);
+      set({
+        ready: true,
+        customerInfo: info,
+        offering,
+        isPro: hasProEntitlement(info),
+        loading: false,
+      });
+    } catch {
+      set({ ready: true, loading: false });
+    }
+  },
+
+  identify: async (userId) => {
+    if (!get().configurable) return;
+    await identifyPurchases(userId);
+    await get().refresh();
+  },
+
+  refresh: async () => {
+    if (!get().configurable) return;
+    const info = await fetchCustomerInfo();
+    set({ customerInfo: info, isPro: hasProEntitlement(info) });
+  },
+
+  purchase: async (pkg) => {
+    if (!get().configurable) {
+      return { success: false, userCanceled: false, error: 'Purchases unavailable on this build' };
+    }
+    set({ loading: true });
+    try {
+      const { customerInfo } = await Purchases.purchasePackage(pkg);
+      const isPro = hasProEntitlement(customerInfo);
+      set({ customerInfo, isPro, loading: false });
+      return { success: isPro, userCanceled: false };
+    } catch (err: unknown) {
+      const e = err as { userCancelled?: boolean; message?: string };
+      set({ loading: false });
+      return {
+        success: false,
+        userCanceled: Boolean(e?.userCancelled),
+        error: e?.message,
+      };
+    }
+  },
+
+  restore: async () => {
+    if (!get().configurable) {
+      return { success: false, error: 'Purchases unavailable on this build' };
+    }
+    set({ loading: true });
+    try {
+      const customerInfo = await Purchases.restorePurchases();
+      const isPro = hasProEntitlement(customerInfo);
+      set({ customerInfo, isPro, loading: false });
+      return { success: isPro };
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      set({ loading: false });
+      return { success: false, error: e?.message };
+    }
+  },
+}));

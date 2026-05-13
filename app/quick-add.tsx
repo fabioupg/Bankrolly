@@ -1,9 +1,31 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useCanAdd } from '@/hooks/useCanAdd';
+import { promptUpgrade } from '@/components/UpgradePrompt';
 import { colors, radius, spacing, typography } from '@/theme/colors';
+import type { LimitedKind } from '@/utils/limits';
 
 export default function QuickAddModal() {
+  const cash = useCanAdd('cash');
+  const tournament = useCanAdd('tournament');
+  const hand = useCanAdd('hand');
+  const player = useCanAdd('player');
+  const trip = useCanAdd('trip');
+
+  const handleNav = (
+    kind: LimitedKind,
+    state: ReturnType<typeof useCanAdd>,
+    target: string,
+  ) => {
+    router.dismiss();
+    if (!state.canAdd) {
+      promptUpgrade(kind, state.current, state.limit);
+      return;
+    }
+    router.push(target);
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <View style={styles.body}>
@@ -16,30 +38,40 @@ export default function QuickAddModal() {
             subtitle="Buy-in / cash-out, hourly rate, hands"
             glyph="♠"
             tone={colors.accent}
-            onPress={() => {
-              router.dismiss();
-              router.push('/cash/new');
-            }}
+            state={cash}
+            onPress={() => handleNav('cash', cash, '/cash/new')}
           />
           <OptionCard
             title="Tournament"
             subtitle="MTT / SNG / Bounty, ROI, ITM"
             glyph="♣"
             tone="#3b6dff"
-            onPress={() => {
-              router.dismiss();
-              router.push('/tournament/new');
-            }}
+            state={tournament}
+            onPress={() => handleNav('tournament', tournament, '/tournament/new')}
           />
           <OptionCard
             title="Hand Note"
             subtitle="Standalone hand to review later"
             glyph="♥"
             tone="#9333ea"
-            onPress={() => {
-              router.dismiss();
-              router.push('/hand/new');
-            }}
+            state={hand}
+            onPress={() => handleNav('hand', hand, '/hand/new')}
+          />
+          <OptionCard
+            title="Player Note"
+            subtitle="Track tendencies, archetypes, hands"
+            glyph="♦"
+            tone="#dc2626"
+            state={player}
+            onPress={() => handleNav('player', player, '/players/new')}
+          />
+          <OptionCard
+            title="Trip"
+            subtitle="WSOP, EPT, festivals — buy-ins + costs"
+            glyph="✈"
+            tone="#0ea5e9"
+            state={trip}
+            onPress={() => handleNav('trip', trip, '/trips/new')}
           />
         </View>
 
@@ -56,10 +88,12 @@ interface OptionProps {
   subtitle: string;
   glyph: string;
   tone: string;
+  state: ReturnType<typeof useCanAdd>;
   onPress: () => void;
 }
 
-function OptionCard({ title, subtitle, glyph, tone, onPress }: OptionProps) {
+function OptionCard({ title, subtitle, glyph, tone, state, onPress }: OptionProps) {
+  const showLimit = !state.isPro;
   return (
     <Pressable
       onPress={onPress}
@@ -71,6 +105,11 @@ function OptionCard({ title, subtitle, glyph, tone, onPress }: OptionProps) {
       <View style={styles.optionMeta}>
         <Text style={styles.optionTitle}>{title}</Text>
         <Text style={styles.optionSub}>{subtitle}</Text>
+        {showLimit ? (
+          <Text style={[styles.limit, !state.canAdd && styles.limitFull]}>
+            {state.current}/{state.limit} on Free
+          </Text>
+        ) : null}
       </View>
       <Text style={styles.chev}>›</Text>
     </Pressable>
@@ -135,6 +174,16 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: typography.small,
     marginTop: 2,
+  },
+  limit: {
+    color: colors.textDim,
+    fontSize: typography.micro,
+    marginTop: 4,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  limitFull: {
+    color: colors.warn,
   },
   chev: {
     color: colors.textDim,

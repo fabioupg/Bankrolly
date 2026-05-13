@@ -136,9 +136,9 @@ export async function exportAllAsCsv({ cash, tourneys, hands }: ExportInput): Pr
   if (!dir) throw new Error('No writable directory available');
 
   const files = [
-    { name: `pokerledger-cash-${stamp}.csv`, body: buildCashCsv(cash) },
-    { name: `pokerledger-tournaments-${stamp}.csv`, body: buildTournamentCsv(tourneys) },
-    { name: `pokerledger-hands-${stamp}.csv`, body: buildHandsCsv(hands) },
+    { name: `bankrolly-cash-${stamp}.csv`, body: buildCashCsv(cash) },
+    { name: `bankrolly-tournaments-${stamp}.csv`, body: buildTournamentCsv(tourneys) },
+    { name: `bankrolly-hands-${stamp}.csv`, body: buildHandsCsv(hands) },
   ];
 
   const paths: string[] = [];

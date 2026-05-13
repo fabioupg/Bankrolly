@@ -1,26 +1,30 @@
 {
   "expo": {
-    "name": "PokerLedger",
+    "name": "Bankrolly",
     "slug": "pokerledger",
     "version": "1.0.0",
     "orientation": "portrait",
-    "scheme": "pokerledger",
+    "icon": "./assets/icon.png",
+    "scheme": "bankrolly",
     "userInterfaceStyle": "dark",
     "splash": {
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#0b0f0d"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.pokerledger.app",
-      "buildNumber": "1"
+      "bundleIdentifier": "com.bankrolly.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0b0f0d"
       },
-      "package": "com.pokerledger.app",
-      "versionCode": 1
+      "package": "com.bankrolly.app"
     },
     "web": {
       "bundler": "metro"
@@ -37,6 +41,12 @@
         "projectId": "651f5960-0c6f-4e80-8a87-e6d63f922f3f"
       }
     },
-    "owner": "fabio_upg"
+    "owner": "fabio_upg",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/651f5960-0c6f-4e80-8a87-e6d63f922f3f"
+    }
   }
 }

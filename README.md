@@ -1,4 +1,4 @@
-# PokerLedger
+# Bankrolly
 
 Cross-platform mobile poker bankroll tracker for cash games and tournaments, with hand history logging. Built with Expo + React Native + TypeScript, all data stored locally in SQLite via Drizzle ORM.
 

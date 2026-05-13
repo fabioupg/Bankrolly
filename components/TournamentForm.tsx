@@ -7,6 +7,9 @@ import { DateField } from '@/components/DateField';
 import { FormField } from '@/components/FormField';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { SectionTitle } from '@/components/SectionTitle';
+import { TripPicker } from '@/components/TripPicker';
+import { useCanAdd } from '@/hooks/useCanAdd';
+import { promptUpgrade } from '@/components/UpgradePrompt';
 import { useTournamentStore } from '@/store/useTournamentStore';
 import { useSettingsStore } from '@/store/useStatsStore';
 import {
@@ -31,6 +34,7 @@ interface FormState {
   prize: string;
   bounties: string;
   notes: string;
+  tripId: string | null;
 }
 
 function toForm(t?: Tournament): FormState {
@@ -48,6 +52,7 @@ function toForm(t?: Tournament): FormState {
       prize: '',
       bounties: '',
       notes: '',
+      tripId: null,
     };
   }
   const fmt = TOURNAMENT_FORMATS.includes(t.format as TournamentFormat)
@@ -66,6 +71,7 @@ function toForm(t?: Tournament): FormState {
     prize: t.prize ? String(t.prize) : '',
     bounties: t.bounties ? String(t.bounties) : '',
     notes: t.notes,
+    tripId: t.tripId ?? null,
   };
 }
 
@@ -82,6 +88,7 @@ export function TournamentForm({ initial, mode, footerContent }: Props) {
   const update = useTournamentStore((s) => s.update);
   const remove = useTournamentStore((s) => s.remove);
   const currency = useSettingsStore((s) => s.currency);
+  const limit = useCanAdd('tournament');
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((s) => ({ ...s, [key]: value }));
@@ -112,6 +119,10 @@ export function TournamentForm({ initial, mode, footerContent }: Props) {
       Alert.alert('Check the form', err);
       return;
     }
+    if (mode === 'create' && !limit.canAdd) {
+      promptUpgrade('tournament', limit.current, limit.limit);
+      return;
+    }
     setSubmitting(true);
     try {
       const payload = {
@@ -127,6 +138,7 @@ export function TournamentForm({ initial, mode, footerContent }: Props) {
         prize: Number(form.prize) || 0,
         bounties: Number(form.bounties) || 0,
         notes: form.notes.trim(),
+        tripId: form.tripId,
       };
       if (mode === 'edit' && initial) {
         await update(initial.id, payload);
@@ -268,6 +280,12 @@ export function TournamentForm({ initial, mode, footerContent }: Props) {
             />
           </View>
         </View>
+
+        <TripPicker
+          value={form.tripId}
+          onChange={(id) => set('tripId', id)}
+          preferredDateIso={form.date.toISOString()}
+        />
 
         <FormField
           label="Notes"

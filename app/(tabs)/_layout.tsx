@@ -68,6 +68,13 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="players"
+        options={{
+          title: 'Players',
+          tabBarIcon: ({ focused }) => <TabIcon glyph="♣" label="Players" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
         name="analytics"
         options={{
           title: 'Analytics',

@@ -4,6 +4,8 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Chip } from '@/components/Chip';
 import { HandNoteCard, TAG_LABELS } from '@/components/HandNoteCard';
+import { promptUpgrade } from '@/components/UpgradePrompt';
+import { useCanAdd } from '@/hooks/useCanAdd';
 import { useHandStore } from '@/store/useHandStore';
 import { useSettingsStore } from '@/store/useStatsStore';
 import {
@@ -23,6 +25,15 @@ export default function HandHistoryScreen() {
   const hands = useHandStore((s) => s.hands);
   const remove = useHandStore((s) => s.remove);
   const currency = useSettingsStore((s) => s.currency);
+  const limit = useCanAdd('hand');
+
+  const handleNew = () => {
+    if (!limit.canAdd) {
+      promptUpgrade('hand', limit.current, limit.limit);
+      return;
+    }
+    router.push('/hand/new');
+  };
 
   const [tag, setTag] = useState<Filter<HandTag>>('all');
   const [position, setPosition] = useState<Filter<Position>>('all');
@@ -69,7 +80,7 @@ export default function HandHistoryScreen() {
           <View style={styles.header}>
             <View style={styles.headerRow}>
               <Text style={styles.title}>{hands.length} hand{hands.length === 1 ? '' : 's'} logged</Text>
-              <Pressable onPress={() => router.push('/hand/new')} style={styles.addBtn}>
+              <Pressable onPress={handleNew} style={styles.addBtn}>
                 <Text style={styles.addLabel}>+ New</Text>
               </Pressable>
             </View>
@@ -151,7 +162,7 @@ export default function HandHistoryScreen() {
                 : 'Try resetting the filters.'}
             </Text>
             {hands.length === 0 ? (
-              <Pressable onPress={() => router.push('/hand/new')} style={styles.bigAddBtn}>
+              <Pressable onPress={handleNew} style={styles.bigAddBtn}>
                 <Text style={styles.bigAddLabel}>+ Log your first hand</Text>
               </Pressable>
             ) : null}

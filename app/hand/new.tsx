@@ -2,9 +2,12 @@ import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActionBuilder } from '@/components/ActionBuilder';
 import { Chip } from '@/components/Chip';
 import { FormField } from '@/components/FormField';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { promptUpgrade } from '@/components/UpgradePrompt';
+import { useCanAdd } from '@/hooks/useCanAdd';
 import { useHandStore } from '@/store/useHandStore';
 import {
   HAND_TAGS,
@@ -51,6 +54,7 @@ export default function NewHandNote() {
   });
   const [submitting, setSubmitting] = useState(false);
   const add = useHandStore((s) => s.add);
+  const limit = useCanAdd('hand');
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((s) => ({ ...s, [key]: value }));
@@ -58,6 +62,10 @@ export default function NewHandNote() {
   const onSave = async () => {
     if (!form.actionLine.trim() && !form.notes.trim() && !form.heroCards.trim()) {
       Alert.alert('Empty hand', 'Add at least hero cards, action line, or notes.');
+      return;
+    }
+    if (!limit.canAdd) {
+      promptUpgrade('hand', limit.current, limit.limit);
       return;
     }
     setSubmitting(true);
@@ -163,6 +171,11 @@ export default function NewHandNote() {
           multiline
           style={styles.multi}
         />
+        <ActionBuilder
+          onApply={(text) => {
+            set('actionLine', form.actionLine.trim() ? `${form.actionLine.trim()}\n${text}` : text);
+          }}
+        />
         <FormField
           label="Action line"
           placeholder="UTG opens 3bb, Hero 3bets 9bb, BB calls..."
@@ -170,6 +183,7 @@ export default function NewHandNote() {
           onChangeText={(v) => set('actionLine', v)}
           multiline
           style={styles.multi}
+          hint="Build above with the structured picker, or type freely here."
         />
         <FormField
           label="Result (chips / $)"

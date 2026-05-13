@@ -7,10 +7,12 @@ const DB_NAME = 'pokerledger.db';
 export const expoDb = SQLite.openDatabaseSync(DB_NAME);
 export const db = drizzle(expoDb, { schema });
 
-const INIT_SQL = `
+const PRAGMAS = `
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
+`;
 
+const CREATE_TABLES_SQL = `
 CREATE TABLE IF NOT EXISTS cash_sessions (
   id TEXT PRIMARY KEY NOT NULL,
   date TEXT NOT NULL,
@@ -57,16 +59,85 @@ CREATE TABLE IF NOT EXISTS hand_notes (
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS players (
+  id TEXT PRIMARY KEY NOT NULL,
+  owner_id TEXT NOT NULL DEFAULT '',
+  name TEXT NOT NULL,
+  nickname TEXT NOT NULL DEFAULT '',
+  venue TEXT NOT NULL DEFAULT '',
+  archetype TEXT NOT NULL DEFAULT '',
+  preflop_tendencies TEXT NOT NULL DEFAULT '',
+  postflop_tendencies TEXT NOT NULL DEFAULT '',
+  bet_sizing TEXT NOT NULL DEFAULT '',
+  bluff_frequency TEXT NOT NULL DEFAULT '',
+  general_notes TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS player_hands (
+  id TEXT PRIMARY KEY NOT NULL,
+  player_id TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  result TEXT NOT NULL DEFAULT 'unknown',
+  stakes TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS trips (
+  id TEXT PRIMARY KEY NOT NULL,
+  owner_id TEXT NOT NULL DEFAULT '',
+  name TEXT NOT NULL,
+  destination TEXT NOT NULL DEFAULT '',
+  start_date TEXT NOT NULL,
+  end_date TEXT NOT NULL,
+  notes TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS trip_expenses (
+  id TEXT PRIMARY KEY NOT NULL,
+  trip_id TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'other',
+  description TEXT NOT NULL DEFAULT '',
+  amount REAL NOT NULL DEFAULT 0,
+  date TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+`;
+
+const CREATE_INDEXES_SQL = `
 CREATE INDEX IF NOT EXISTS idx_cash_date ON cash_sessions(date);
 CREATE INDEX IF NOT EXISTS idx_tourney_date ON tournaments(date);
 CREATE INDEX IF NOT EXISTS idx_hand_session ON hand_notes(session_id);
 CREATE INDEX IF NOT EXISTS idx_hand_tag ON hand_notes(tag);
+CREATE INDEX IF NOT EXISTS idx_player_owner ON players(owner_id);
+CREATE INDEX IF NOT EXISTS idx_player_name ON players(name);
+CREATE INDEX IF NOT EXISTS idx_player_hand_player ON player_hands(player_id);
+CREATE INDEX IF NOT EXISTS idx_trip_owner ON trips(owner_id);
+CREATE INDEX IF NOT EXISTS idx_trip_dates ON trips(start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_trip_expense_trip ON trip_expenses(trip_id);
+CREATE INDEX IF NOT EXISTS idx_cash_trip ON cash_sessions(trip_id);
+CREATE INDEX IF NOT EXISTS idx_tourney_trip ON tournaments(trip_id);
 `;
+
+function ensureColumn(table: string, column: string, type: string) {
+  const rows = expoDb.getAllSync<{ name: string }>(`PRAGMA table_info(${table})`);
+  const exists = rows.some((r) => r.name === column);
+  if (!exists) {
+    expoDb.execSync(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+  }
+}
 
 let initialized = false;
 export function initDatabase() {
   if (initialized) return;
-  expoDb.execSync(INIT_SQL);
+  expoDb.execSync(PRAGMAS);
+  expoDb.execSync(CREATE_TABLES_SQL);
+  ensureColumn('cash_sessions', 'trip_id', 'TEXT');
+  ensureColumn('tournaments', 'trip_id', 'TEXT');
+  expoDb.execSync(CREATE_INDEXES_SQL);
   initialized = true;
 }
 
@@ -75,6 +146,10 @@ export function resetDatabase() {
     DROP TABLE IF EXISTS cash_sessions;
     DROP TABLE IF EXISTS tournaments;
     DROP TABLE IF EXISTS hand_notes;
+    DROP TABLE IF EXISTS players;
+    DROP TABLE IF EXISTS player_hands;
+    DROP TABLE IF EXISTS trips;
+    DROP TABLE IF EXISTS trip_expenses;
   `);
   initialized = false;
   initDatabase();

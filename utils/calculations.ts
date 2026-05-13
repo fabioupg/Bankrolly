@@ -1,4 +1,4 @@
-import type { CashSession, Tournament } from '@/db/schema';
+import type { CashSession, Tournament, Trip, TripExpense, ExpenseCategory } from '@/db/schema';
 
 export function cashProfit(s: Pick<CashSession, 'cashOut' | 'buyIn'>): number {
   return s.cashOut - s.buyIn;
@@ -217,3 +217,94 @@ export function biggestLosses(entries: SessionEntry[], n = 5): SessionEntry[] {
 export function profitInRange(entries: SessionEntry[], fromIso: string): number {
   return entries.filter((e) => e.date >= fromIso).reduce((s, e) => s + e.profit, 0);
 }
+
+export interface TripSummary {
+  cashSessions: CashSession[];
+  tournaments: Tournament[];
+  expenses: TripExpense[];
+  totalCashProfit: number;
+  totalTournamentProfit: number;
+  totalPokerProfit: number;
+  totalExpenses: number;
+  expensesByCategory: Record<string, number>;
+  totalCashBuyIn: number;
+  totalTournamentInvested: number;
+  totalInvested: number;
+  netResult: number;
+  totalCashMinutes: number;
+  daysSpan: number;
+}
+
+export function isTripActive(trip: Trip, today = new Date()): boolean {
+  const t = new Date(today);
+  t.setHours(12, 0, 0, 0);
+  const start = new Date(trip.startDate);
+  const end = new Date(trip.endDate);
+  return start <= t && t <= end;
+}
+
+export function isTripUpcoming(trip: Trip, today = new Date()): boolean {
+  return new Date(trip.startDate) > today;
+}
+
+export function tripSummary(
+  trip: Trip,
+  cash: CashSession[],
+  tourneys: Tournament[],
+  expenses: TripExpense[],
+): TripSummary {
+  const tripCash = cash.filter((c) => c.tripId === trip.id);
+  const tripTourneys = tourneys.filter((t) => t.tripId === trip.id);
+  const tripExpensesList = expenses.filter((e) => e.tripId === trip.id);
+
+  const totalCashProfit = tripCash.reduce((s, c) => s + cashProfit(c), 0);
+  const totalCashBuyIn = tripCash.reduce((s, c) => s + c.buyIn, 0);
+  const totalCashMinutes = tripCash.reduce((s, c) => s + c.durationMinutes, 0);
+  const totalTournamentProfit = tripTourneys.reduce((s, t) => s + tournamentNet(t), 0);
+  const totalTournamentInvested = tripTourneys.reduce((s, t) => s + tournamentInvested(t), 0);
+  const totalExpenses = tripExpensesList.reduce((s, e) => s + e.amount, 0);
+
+  const expensesByCategory: Record<string, number> = {};
+  for (const e of tripExpensesList) {
+    expensesByCategory[e.category] = (expensesByCategory[e.category] ?? 0) + e.amount;
+  }
+
+  const totalPokerProfit = totalCashProfit + totalTournamentProfit;
+  const totalInvested = totalCashBuyIn + totalTournamentInvested;
+  const netResult = totalPokerProfit - totalExpenses;
+
+  const start = new Date(trip.startDate);
+  const end = new Date(trip.endDate);
+  const daysSpan = Math.max(
+    1,
+    Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1,
+  );
+
+  return {
+    cashSessions: tripCash,
+    tournaments: tripTourneys,
+    expenses: tripExpensesList,
+    totalCashProfit,
+    totalTournamentProfit,
+    totalPokerProfit,
+    totalExpenses,
+    expensesByCategory,
+    totalCashBuyIn,
+    totalTournamentInvested,
+    totalInvested,
+    netResult,
+    totalCashMinutes,
+    daysSpan,
+  };
+}
+
+export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategory, string> = {
+  hotel: 'Hotel',
+  food: 'Food',
+  drinks: 'Drinks',
+  transport: 'Transport',
+  entrance: 'Entrance / fees',
+  tips: 'Tips',
+  shopping: 'Shopping',
+  other: 'Other',
+};

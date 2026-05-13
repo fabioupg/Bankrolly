@@ -5,6 +5,7 @@ import { StatCard } from '@/components/StatCard';
 import { BankrollChart } from '@/components/BankrollChart';
 import { BarChart } from '@/components/BarChart';
 import { RoiChart } from '@/components/RoiChart';
+import { ProGate } from '@/components/ProGate';
 import { useDerivedStats, useSettingsStore } from '@/store/useStatsStore';
 import { colors, radius, spacing, typography, pnlColor } from '@/theme/colors';
 import { formatHours, formatPercent, formatPnL, formatRate } from '@/utils/formatters';
@@ -54,32 +55,50 @@ export default function AnalyticsScreen() {
 
       <View style={styles.card}>
         <SectionTitle title="Bankroll over time" />
-        <BankrollChart data={stats.bankrollSeries} currency={currency} movingWindow={20} />
+        <ProGate
+          fallbackTitle="Unlock bankroll chart"
+          fallbackBody="Pro shows your cumulative bankroll with a 20-session moving average."
+          minHeight={240}
+        >
+          <BankrollChart data={stats.bankrollSeries} currency={currency} movingWindow={20} />
+        </ProGate>
       </View>
 
       <View style={styles.card}>
         <SectionTitle title="Hourly rate by venue" />
-        <BarChart data={venueBars} currency={currency} emptyText="No cash sessions yet" />
-        {stats.venueStats.length > 0 ? (
-          <View style={styles.venueList}>
-            {stats.venueStats.slice(0, 6).map((v) => (
-              <View key={v.venue} style={styles.venueRow}>
-                <Text style={styles.venueName} numberOfLines={1}>{v.venue}</Text>
-                <Text style={styles.venueMeta}>
-                  {formatHours(v.hours * 60)} • {v.sessions} sess.
-                </Text>
-                <Text style={[styles.venueRate, { color: pnlColor(v.rate) }]}>
-                  {formatRate(v.rate, currency)}
-                </Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
+        <ProGate
+          fallbackTitle="Unlock venue stats"
+          fallbackBody="Pro breaks down your hourly rate per casino, club or online site."
+          minHeight={240}
+        >
+          <BarChart data={venueBars} currency={currency} emptyText="No cash sessions yet" />
+          {stats.venueStats.length > 0 ? (
+            <View style={styles.venueList}>
+              {stats.venueStats.slice(0, 6).map((v) => (
+                <View key={v.venue} style={styles.venueRow}>
+                  <Text style={styles.venueName} numberOfLines={1}>{v.venue}</Text>
+                  <Text style={styles.venueMeta}>
+                    {formatHours(v.hours * 60)} • {v.sessions} sess.
+                  </Text>
+                  <Text style={[styles.venueRate, { color: pnlColor(v.rate) }]}>
+                    {formatRate(v.rate, currency)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </ProGate>
       </View>
 
       <View style={styles.card}>
         <SectionTitle title="MTT ROI over time" />
-        <RoiChart data={stats.roiOverTime} />
+        <ProGate
+          fallbackTitle="Unlock ROI trend"
+          fallbackBody="Pro charts your cumulative MTT ROI over time."
+          minHeight={220}
+        >
+          <RoiChart data={stats.roiOverTime} />
+        </ProGate>
       </View>
 
       <View style={styles.twoCol}>

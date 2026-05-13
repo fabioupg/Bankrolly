@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { SectionTitle } from '@/components/SectionTitle';
@@ -9,19 +9,32 @@ import { useDerivedStats, useSettingsStore } from '@/store/useStatsStore';
 import { useSessionStore } from '@/store/useSessionStore';
 import { useTournamentStore } from '@/store/useTournamentStore';
 import { useHandStore } from '@/store/useHandStore';
+import { useTripStore } from '@/store/useTripStore';
+import { isTripActive, tripSummary } from '@/utils/calculations';
 import {
+  formatDateShort,
   formatHours,
   formatMoney,
   formatPercent,
   formatPnL,
   formatRate,
 } from '@/utils/formatters';
-import { colors, radius, spacing, typography } from '@/theme/colors';
+import { colors, pnlColor, radius, spacing, typography } from '@/theme/colors';
 
 export default function Dashboard() {
   const stats = useDerivedStats();
   const currency = useSettingsStore((s) => s.currency);
+  const trips = useTripStore((s) => s.trips);
+  const tripExpenses = useTripStore((s) => s.expenses);
+  const cash = useSessionStore((s) => s.sessions);
+  const tourneys = useTournamentStore((s) => s.tourneys);
   const [refreshing, setRefreshing] = useState(false);
+
+  const activeTrip = useMemo(() => trips.find((t) => isTripActive(t)), [trips]);
+  const activeTripSummary = useMemo(
+    () => (activeTrip ? tripSummary(activeTrip, cash, tourneys, tripExpenses) : null),
+    [activeTrip, cash, tourneys, tripExpenses],
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -60,6 +73,48 @@ export default function Dashboard() {
           </View>
         </View>
       </View>
+
+      {activeTrip && activeTripSummary ? (
+        <Pressable
+          onPress={() => router.push(`/trips/${activeTrip.id}`)}
+          style={({ pressed }) => [styles.tripCard, pressed && { opacity: 0.9 }]}
+        >
+          <View style={styles.tripCardHead}>
+            <View style={styles.tripBadge}>
+              <Text style={styles.tripBadgeText}>● LIVE TRIP</Text>
+            </View>
+            <Text style={styles.tripDates}>
+              {formatDateShort(activeTrip.startDate)} – {formatDateShort(activeTrip.endDate)}
+            </Text>
+          </View>
+          <Text style={styles.tripName}>{activeTrip.name}</Text>
+          {activeTrip.destination ? (
+            <Text style={styles.tripDest}>{activeTrip.destination}</Text>
+          ) : null}
+          <View style={styles.tripStats}>
+            <View>
+              <Text style={styles.tripStatLabel}>Net</Text>
+              <Text style={[styles.tripStatValue, { color: pnlColor(activeTripSummary.netResult) }]}>
+                {formatPnL(activeTripSummary.netResult, currency)}
+              </Text>
+            </View>
+            <View>
+              <Text style={styles.tripStatLabel}>Poker</Text>
+              <Text
+                style={[styles.tripStatValue, { color: pnlColor(activeTripSummary.totalPokerProfit) }]}
+              >
+                {formatPnL(activeTripSummary.totalPokerProfit, currency)}
+              </Text>
+            </View>
+            <View>
+              <Text style={styles.tripStatLabel}>Expenses</Text>
+              <Text style={[styles.tripStatValue, { color: colors.loss }]}>
+                {formatPnL(-activeTripSummary.totalExpenses, currency)}
+              </Text>
+            </View>
+          </View>
+        </Pressable>
+      ) : null}
 
       {stats.losingStreakWarning ? (
         <View style={styles.warning}>
@@ -236,5 +291,59 @@ const styles = StyleSheet.create({
   hintText: {
     color: colors.textDim,
     fontSize: typography.micro,
+  },
+  tripCard: {
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    padding: spacing.lg,
+    gap: 6,
+  },
+  tripCardHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  tripBadge: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.sm,
+  },
+  tripBadgeText: {
+    color: '#fff',
+    fontSize: typography.micro,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  tripDates: {
+    color: colors.textMuted,
+    fontSize: typography.small,
+  },
+  tripName: {
+    color: colors.text,
+    fontSize: typography.heading,
+    fontWeight: '800',
+    marginTop: 4,
+  },
+  tripDest: {
+    color: colors.textMuted,
+    fontSize: typography.small,
+  },
+  tripStats: {
+    flexDirection: 'row',
+    gap: spacing.lg,
+    marginTop: spacing.md,
+  },
+  tripStatLabel: {
+    color: colors.textDim,
+    fontSize: typography.micro,
+    letterSpacing: 0.5,
+  },
+  tripStatValue: {
+    fontSize: typography.body,
+    fontWeight: '800',
+    marginTop: 2,
   },
 });

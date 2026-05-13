@@ -30,9 +30,9 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "REPLACE_ME@example.com",
-        "ascAppId": "REPLACE_ME",
-        "appleTeamId": "REPLACE_ME"
+        "appleId": "fabioschwabsnkrs@gmail.com",
+        "ascAppId": "6768653080",
+        "appleTeamId": "96MVU8J29V"
       },
       "android": {
         "track": "internal"
