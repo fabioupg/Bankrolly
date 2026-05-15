@@ -20,8 +20,7 @@ const FEATURES = [
   'Unlimited player notes and hand history',
   'All analytics charts: bankroll, ROI, venue rate',
   'CSV export for cash, tourneys and hands',
-  'Cross-device cloud sync',
-  'Priority support',
+  'Subscription works on all your devices',
 ];
 
 const TOS_URL = 'https://fabioupg.github.io/Bankrolly/terms';
