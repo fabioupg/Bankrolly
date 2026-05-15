@@ -133,13 +133,13 @@ export default function PaywallScreen() {
           label="Monthly"
           price={priceFor(monthly, '€12.99')}
           per="/ month"
-          subtext={trialEligible ? '7-day free trial' : 'Billed monthly'}
+          subtext={trialEligible ? '14-day free trial' : 'Billed monthly'}
           selected={selected === 'monthly'}
           onPress={() => setSelected('monthly')}
         />
 
         <PrimaryButton
-          label={trialEligible ? 'Start 7-day free trial' : 'Subscribe'}
+          label={trialEligible ? 'Start 14-day free trial' : 'Subscribe'}
           onPress={onPurchase}
           loading={loading}
           disabled={!selectedPackage}

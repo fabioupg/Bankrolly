@@ -190,7 +190,7 @@ export default function SettingsScreen() {
               <Text style={styles.upsellTitle}>Upgrade to Pro</Text>
               <Text style={styles.upsellBody}>
                 Unlimited sessions, trips, players & hands. Full analytics charts. CSV export.
-                7-day free trial.
+                14-day free trial.
               </Text>
             </View>
             <Text style={styles.upsellChev}>›</Text>

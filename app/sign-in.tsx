@@ -55,9 +55,33 @@ export default function SignInScreen() {
       if (attempt.status === 'complete') {
         await setActive({ session: attempt.createdSessionId });
         router.replace('/');
-      } else {
-        Alert.alert('Almost there', 'Additional verification required.');
+        return;
       }
+      if (attempt.status === 'needs_first_factor') {
+        Alert.alert(
+          'Check your email',
+          'Your account has email-code sign-in enabled. Use the email link/code instead of the password, or contact support.',
+        );
+        return;
+      }
+      if (attempt.status === 'needs_second_factor') {
+        Alert.alert(
+          'Two-step verification active',
+          'This account requires 2FA. Disable it in your account security settings, or contact support.',
+        );
+        return;
+      }
+      if (attempt.status === 'needs_new_password') {
+        Alert.alert(
+          'Password reset required',
+          'Your password must be reset before signing in. Use "Forgot password" or contact support.',
+        );
+        return;
+      }
+      Alert.alert(
+        'Sign in incomplete',
+        `Status: ${attempt.status}. Please try again or contact support at bankrolly@fabulousio.com`,
+      );
     } catch (err: unknown) {
       const message =
         (err as { errors?: { message?: string }[] })?.errors?.[0]?.message ??
