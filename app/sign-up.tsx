@@ -1,5 +1,14 @@
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { Link, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSignUp } from '@clerk/clerk-expo';
@@ -65,8 +74,16 @@ export default function SignUpScreen() {
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safe}>
-      <View style={styles.body}>
-        <View style={styles.brand}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex}
+      >
+        <ScrollView
+          contentContainerStyle={styles.body}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.brand}>
           <Text style={styles.logo}>♣</Text>
           <Text style={styles.title}>Create account</Text>
           <Text style={styles.subtitle}>
@@ -128,15 +145,17 @@ export default function SignUpScreen() {
             </Pressable>
           </Link>
         </View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
+  flex: { flex: 1 },
   body: {
-    flex: 1,
+    flexGrow: 1,
     padding: spacing.lg,
     gap: spacing.md,
     justifyContent: 'center',

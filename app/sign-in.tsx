@@ -1,5 +1,14 @@
 import { useState } from 'react';
-import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { Link, router } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -95,8 +104,16 @@ export default function SignInScreen() {
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safe}>
-      <View style={styles.body}>
-        <View style={styles.brand}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex}
+      >
+        <ScrollView
+          contentContainerStyle={styles.body}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.brand}>
           <Text style={styles.logo}>♠</Text>
           <Text style={styles.title}>Bankrolly</Text>
           <Text style={styles.subtitle}>Sign in to track your bankroll</Text>
@@ -170,7 +187,8 @@ export default function SignInScreen() {
             </Pressable>
           </Link>
         </View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -207,8 +225,9 @@ function ProviderButton({ label, glyph, tone, fg, onPress }: PBProps) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
+  flex: { flex: 1 },
   body: {
-    flex: 1,
+    flexGrow: 1,
     padding: spacing.lg,
     gap: spacing.md,
     justifyContent: 'center',
