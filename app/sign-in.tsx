@@ -124,8 +124,8 @@ export default function SignInScreen() {
             <ProviderButton
               label="Continue with Apple"
               glyph=""
-              tone="#000"
-              fg="#fff"
+              tone="#fff"
+              fg="#000"
               onPress={() => handleOAuth('oauth_apple')}
             />
           ) : null}
@@ -261,6 +261,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: radius.md,
     gap: spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.22)',
   },
   providerGlyphBox: {
     width: 22,

@@ -22,6 +22,10 @@
     "production": {
       "autoIncrement": true,
       "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZWxlY3RyaWMtc3BvbmdlLTYyLmNsZXJrLmFjY291bnRzLmRldiQ",
+        "EXPO_PUBLIC_REVENUECAT_API_KEY_IOS": "appl_aIhsPthcSiyJaFpPopaejSOwzBu"
+      },
       "android": {
         "buildType": "app-bundle"
       }

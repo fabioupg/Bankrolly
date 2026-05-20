@@ -135,6 +135,40 @@ export default function SettingsScreen() {
     );
   };
 
+  const onDeleteAccount = () => {
+    Alert.alert(
+      'Delete account?',
+      'This permanently deletes your Bankrolly account and all associated data, including every session, tournament and hand note. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete account',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await user?.delete();
+            } catch (err) {
+              Alert.alert('Could not delete account', (err as Error).message);
+              return;
+            }
+            resetDatabase();
+            await Promise.all([
+              useSessionStore.getState().hydrate(),
+              useTournamentStore.getState().hydrate(),
+              useHandStore.getState().hydrate(),
+            ]);
+            try {
+              await signOut();
+            } catch {
+              // session is already invalidated by the deletion
+            }
+            router.replace('/sign-in');
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <ScreenContainer>
       <View style={styles.card}>
@@ -280,7 +314,13 @@ export default function SettingsScreen() {
       <View style={styles.card}>
         <SectionTitle title="Danger zone" />
         <PrimaryButton label="Reset database" variant="danger" onPress={onReset} />
-        <Text style={styles.hint}>This action cannot be undone.</Text>
+        <Text style={styles.hint}>
+          Deletes all local sessions, tournaments and hand notes. This action cannot be undone.
+        </Text>
+        <PrimaryButton label="Delete account" variant="danger" onPress={onDeleteAccount} />
+        <Text style={styles.hint}>
+          Permanently deletes your account and all associated data. This action cannot be undone.
+        </Text>
       </View>
 
       <View style={styles.aboutCard}>

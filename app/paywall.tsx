@@ -45,6 +45,7 @@ export default function PaywallScreen() {
   const monthly = useMemo(() => offering?.monthly ?? null, [offering]);
 
   const [selected, setSelected] = useState<'annual' | 'monthly'>('annual');
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (isPro) router.dismiss();
@@ -59,20 +60,38 @@ export default function PaywallScreen() {
   );
 
   const onPurchase = async () => {
-    if (!selectedPackage) {
-      Alert.alert(
-        'Plans not loaded',
-        configurable
-          ? 'Try again in a moment.'
-          : 'Purchases are only available in a development or production build, not in Expo Go.',
-      );
-      return;
-    }
-    const result = await purchase(selectedPackage);
-    if (result.success) {
-      router.dismiss();
-    } else if (!result.userCanceled && result.error) {
-      Alert.alert('Purchase failed', result.error);
+    if (busy) return;
+    setBusy(true);
+    try {
+      if (!configurable) {
+        Alert.alert(
+          'Purchases unavailable',
+          'In-app purchases are only available in a TestFlight or App Store build.',
+        );
+        return;
+      }
+      let pkg = selected === 'annual' ? yearly : monthly;
+      if (!pkg) {
+        // Offering not loaded yet — retry fetching it before giving up.
+        await refresh();
+        const fresh = useSubscriptionStore.getState().offering;
+        pkg = selected === 'annual' ? fresh?.annual ?? null : fresh?.monthly ?? null;
+      }
+      if (!pkg) {
+        Alert.alert(
+          'Plans unavailable',
+          "We couldn't load the subscription plans from the App Store. Please check your connection and try again.",
+        );
+        return;
+      }
+      const result = await purchase(pkg);
+      if (result.success) {
+        router.dismiss();
+      } else if (!result.userCanceled && result.error) {
+        Alert.alert('Purchase failed', result.error);
+      }
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -140,11 +159,16 @@ export default function PaywallScreen() {
         <PrimaryButton
           label={trialEligible ? 'Start 14-day free trial' : 'Subscribe'}
           onPress={onPurchase}
-          loading={loading}
-          disabled={!selectedPackage}
+          loading={busy}
         />
 
-        <Pressable onPress={onRestore} style={styles.restoreBtn} disabled={loading}>
+        {configurable && !selectedPackage && !busy ? (
+          <Text style={styles.loadNotice}>
+            Still loading subscription plans — tap Subscribe to retry.
+          </Text>
+        ) : null}
+
+        <Pressable onPress={onRestore} style={styles.restoreBtn} disabled={loading || busy}>
           <Text style={styles.restoreLabel}>Restore purchases</Text>
         </Pressable>
 
@@ -361,6 +385,11 @@ const styles = StyleSheet.create({
   planPer: {
     color: colors.textMuted,
     fontSize: typography.small,
+  },
+  loadNotice: {
+    color: colors.textMuted,
+    fontSize: typography.small,
+    textAlign: 'center',
   },
   restoreBtn: {
     alignItems: 'center',

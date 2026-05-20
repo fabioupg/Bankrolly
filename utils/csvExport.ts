@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import type { CashSession, HandNote, Tournament } from '@/db/schema';
 import { cashProfit, tournamentInvested, tournamentNet, tournamentROI } from './calculations';
