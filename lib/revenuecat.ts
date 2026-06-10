@@ -67,7 +67,13 @@ export function addCustomerInfoListener(listener: (info: CustomerInfo) => void):
 
 export function hasProEntitlement(info: CustomerInfo | null): boolean {
   if (!info) return false;
-  return Boolean(info.entitlements.active[PRO_ENTITLEMENT_ID]);
+  if (info.entitlements.active[PRO_ENTITLEMENT_ID]) return true;
+  // Defensive fallbacks — the app has a single Pro tier, so ANY active
+  // entitlement or store subscription counts as Pro. Protects against
+  // entitlement naming/attachment mistakes in the RevenueCat dashboard
+  // (e.g. entitlement named "Pro" instead of "pro", or product not attached).
+  if (Object.keys(info.entitlements.active).length > 0) return true;
+  return info.activeSubscriptions.length > 0;
 }
 
 export async function fetchCustomerInfo(): Promise<CustomerInfo | null> {
