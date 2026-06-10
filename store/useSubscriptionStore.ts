@@ -90,7 +90,17 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       const { customerInfo } = await Purchases.purchasePackage(pkg);
       const isPro = hasProEntitlement(customerInfo);
       set({ customerInfo, isPro, loading: false });
-      return { success: isPro, userCanceled: false };
+      if (!isPro) {
+        // Purchase went through but the "pro" entitlement is not active —
+        // surface it instead of failing silently.
+        return {
+          success: false,
+          userCanceled: false,
+          error:
+            'Your purchase completed but Pro could not be activated. Tap "Restore purchases" or contact bankrolly@fabulousio.com.',
+        };
+      }
+      return { success: true, userCanceled: false };
     } catch (err: unknown) {
       const e = err as { userCancelled?: boolean; message?: string };
       set({ loading: false });

@@ -11,8 +11,9 @@ import {
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import * as Linking from 'expo-linking';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useOAuth, useSignIn } from '@clerk/clerk-expo';
+import { useOAuth, useSignIn, useSignInWithApple } from '@clerk/clerk-expo';
 import { FormField } from '@/components/FormField';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { useWarmUpBrowser } from '@/hooks/useWarmUpBrowser';
@@ -28,6 +29,7 @@ export default function SignInScreen() {
   const google = useOAuth({ strategy: 'oauth_google' });
   const discord = useOAuth({ strategy: 'oauth_discord' });
   const github = useOAuth({ strategy: 'oauth_github' });
+  const { startAppleAuthenticationFlow } = useSignInWithApple();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -49,6 +51,22 @@ export default function SignInScreen() {
       }
     } catch (err) {
       Alert.alert('Sign in failed', (err as Error).message);
+    }
+  };
+
+  const handleApple = async () => {
+    try {
+      // Native Sign in with Apple sheet (HIG-compliant), exchanged for a Clerk session.
+      const { createdSessionId, setActive: setActiveApple } =
+        await startAppleAuthenticationFlow();
+      if (createdSessionId && setActiveApple) {
+        await setActiveApple({ session: createdSessionId });
+        router.replace('/');
+      }
+      // createdSessionId === null without an error means the user canceled — do nothing.
+    } catch {
+      // Native flow unavailable (e.g. token exchange not configured) — fall back to web OAuth.
+      await handleOAuth('oauth_apple');
     }
   };
 
@@ -121,12 +139,12 @@ export default function SignInScreen() {
 
         <View style={styles.providers}>
           {Platform.OS === 'ios' ? (
-            <ProviderButton
-              label="Continue with Apple"
-              glyph=""
-              tone="#fff"
-              fg="#000"
-              onPress={() => handleOAuth('oauth_apple')}
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+              cornerRadius={radius.md}
+              style={styles.appleButton}
+              onPress={handleApple}
             />
           ) : null}
           <ProviderButton
@@ -211,13 +229,9 @@ function ProviderButton({ label, glyph, tone, fg, onPress }: PBProps) {
         pressed && { opacity: 0.85 },
       ]}
     >
-      {glyph ? (
-        <View style={styles.providerGlyphBox}>
-          <Text style={[styles.providerGlyph, { color: fg }]}>{glyph}</Text>
-        </View>
-      ) : (
-        <Text style={[styles.appleGlyph, { color: fg }]}></Text>
-      )}
+      <View style={styles.providerGlyphBox}>
+        <Text style={[styles.providerGlyph, { color: fg }]}>{glyph}</Text>
+      </View>
       <Text style={[styles.providerLabel, { color: fg }]}>{label}</Text>
     </Pressable>
   );
@@ -254,6 +268,10 @@ const styles = StyleSheet.create({
   providers: {
     gap: spacing.sm,
   },
+  appleButton: {
+    width: '100%',
+    height: 50,
+  },
   provider: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -271,10 +289,6 @@ const styles = StyleSheet.create({
   providerGlyph: {
     fontWeight: '900',
     fontSize: 18,
-  },
-  appleGlyph: {
-    fontSize: 22,
-    marginRight: 4,
   },
   providerLabel: {
     fontSize: typography.body,

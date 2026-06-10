@@ -65,8 +65,8 @@ export default function PaywallScreen() {
     try {
       if (!configurable) {
         Alert.alert(
-          'Purchases unavailable',
-          'In-app purchases are only available in a TestFlight or App Store build.',
+          'Purchases not supported here',
+          'In-app purchases are not supported on this platform. Please use the iOS app.',
         );
         return;
       }
@@ -78,9 +78,11 @@ export default function PaywallScreen() {
         pkg = selected === 'annual' ? fresh?.annual ?? null : fresh?.monthly ?? null;
       }
       if (!pkg) {
+        const detail = useSubscriptionStore.getState().lastError;
         Alert.alert(
-          'Plans unavailable',
-          "We couldn't load the subscription plans from the App Store. Please check your connection and try again.",
+          'Could not load plans',
+          "We couldn't load the subscription plans from the App Store. Please check your connection and try again." +
+            (detail ? `\n\nDetails: ${detail}` : ''),
         );
         return;
       }
@@ -172,11 +174,13 @@ export default function PaywallScreen() {
           <Text style={styles.restoreLabel}>Restore purchases</Text>
         </Pressable>
 
-        <Pressable onPress={() => setShowDebug((s) => !s)} style={styles.debugToggle}>
-          <Text style={styles.debugToggleLabel}>{showDebug ? 'Hide debug' : 'Debug info'}</Text>
-        </Pressable>
+        {__DEV__ ? (
+          <Pressable onPress={() => setShowDebug((s) => !s)} style={styles.debugToggle}>
+            <Text style={styles.debugToggleLabel}>{showDebug ? 'Hide debug' : 'Debug info'}</Text>
+          </Pressable>
+        ) : null}
 
-        {showDebug ? (
+        {__DEV__ && showDebug ? (
           <View style={styles.debugBox}>
             <Text style={styles.debugTitle}>Subscription debug</Text>
             <Text style={styles.debugRow}>SDK configurable: {String(configurable)}</Text>

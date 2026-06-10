@@ -7,7 +7,12 @@ import Purchases, {
 
 export const PRO_ENTITLEMENT_ID = 'pro';
 
-const IOS_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS ?? '';
+// Public RevenueCat SDK keys — safe to ship in the binary (they are not secrets).
+// Hardcoded fallback so a missing EXPO_PUBLIC_* env var at build/update time can
+// never disable purchases in a store build again (App Review rejection 2.1(b)).
+const IOS_KEY_FALLBACK = 'appl_aIhsPthcSiyJaFpPopaejSOwzBu';
+
+const IOS_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS || IOS_KEY_FALLBACK;
 const ANDROID_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID ?? '';
 
 export function getApiKey(): string {
@@ -69,12 +74,15 @@ export async function fetchCustomerInfo(): Promise<CustomerInfo | null> {
 
 export async function fetchOfferings(): Promise<PurchasesOffering | null> {
   if (!isPurchasesConfigurable() || !configured) return null;
-  try {
-    const offerings = await Purchases.getOfferings();
-    return offerings.current ?? null;
-  } catch {
-    return null;
-  }
+  // Errors intentionally propagate so the store can surface the real
+  // StoreKit/RevenueCat message instead of a generic "not loaded".
+  const offerings = await Purchases.getOfferings();
+  if (offerings.current) return offerings.current;
+  // No "current" offering set in the RevenueCat dashboard — fall back to
+  // the "default" offering, then to the first available one.
+  if (offerings.all['default']) return offerings.all['default'];
+  const first = Object.values(offerings.all)[0];
+  return first ?? null;
 }
 
 export { Purchases };
