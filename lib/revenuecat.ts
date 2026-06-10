@@ -58,6 +58,13 @@ export async function identifyPurchases(userId: string | null): Promise<void> {
   }
 }
 
+// Push-based updates from the SDK (renewals, expirations, entitlement grants)
+// so isPro never goes stale while the app is open.
+export function addCustomerInfoListener(listener: (info: CustomerInfo) => void): void {
+  if (!isPurchasesConfigurable() || !configured) return;
+  Purchases.addCustomerInfoUpdateListener(listener);
+}
+
 export function hasProEntitlement(info: CustomerInfo | null): boolean {
   if (!info) return false;
   return Boolean(info.entitlements.active[PRO_ENTITLEMENT_ID]);

@@ -6,6 +6,7 @@ import type {
 } from 'react-native-purchases';
 import {
   Purchases,
+  addCustomerInfoListener,
   configurePurchases,
   fetchCustomerInfo,
   fetchOfferings,
@@ -42,6 +43,11 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     set({ loading: true, lastError: null });
     try {
       await configurePurchases(userId);
+      // Live updates from RevenueCat (renewal, expiry, entitlement grants) —
+      // keeps isPro current without requiring an app restart.
+      addCustomerInfoListener((info) => {
+        set({ customerInfo: info, isPro: hasProEntitlement(info) });
+      });
       const [info, offering] = await Promise.all([fetchCustomerInfo(), fetchOfferings()]);
       set({
         ready: true,
