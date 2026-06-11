@@ -32,7 +32,7 @@ Open **Settings** in the app and tap **Delete account**. This permanently remove
 
 ### How do I sign in?
 
-Bankrolly supports Sign in with Apple, Google, Discord, GitHub, or email and password. If you have trouble signing in, try again in a few minutes or contact us.
+Bankrolly supports Sign in with Apple, Google, or email and password. If you have trouble signing in, try again in a few minutes or contact us.
 
 ### Is Bankrolly a gambling app?
 
