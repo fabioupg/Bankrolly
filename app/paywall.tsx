@@ -59,6 +59,17 @@ export default function PaywallScreen() {
       selectedPackage?.product?.discounts?.length,
   );
 
+  // Derive the trial length from the store product so the label always
+  // matches the intro offer configured in App Store Connect.
+  const intro = selectedPackage?.product?.introPrice;
+  const trialDays =
+    intro && intro.price === 0
+      ? intro.periodUnit === 'DAY' ? intro.periodNumberOfUnits
+      : intro.periodUnit === 'WEEK' ? intro.periodNumberOfUnits * 7
+      : null
+      : null;
+  const trialLabel = trialDays ? `Start ${trialDays}-day free trial` : 'Start free trial';
+
   const onPurchase = async () => {
     if (busy) return;
     setBusy(true);
@@ -153,13 +164,17 @@ export default function PaywallScreen() {
           label="Monthly"
           price={priceFor(monthly, '€12.99')}
           per="/ month"
-          subtext={trialEligible ? '14-day free trial' : 'Billed monthly'}
+          subtext={
+            trialEligible
+              ? trialDays ? `${trialDays}-day free trial` : 'Free trial included'
+              : 'Billed monthly'
+          }
           selected={selected === 'monthly'}
           onPress={() => setSelected('monthly')}
         />
 
         <PrimaryButton
-          label={trialEligible ? 'Start 14-day free trial' : 'Subscribe'}
+          label={trialEligible ? trialLabel : 'Subscribe'}
           onPress={onPurchase}
           loading={busy}
         />
