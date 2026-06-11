@@ -19,7 +19,7 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { useWarmUpBrowser } from '@/hooks/useWarmUpBrowser';
 import { colors, radius, spacing, typography } from '@/theme/colors';
 
-type OAuthStrategy = 'oauth_apple' | 'oauth_google' | 'oauth_discord' | 'oauth_github';
+type OAuthStrategy = 'oauth_apple' | 'oauth_google';
 
 export default function SignInScreen() {
   useWarmUpBrowser();
@@ -27,8 +27,6 @@ export default function SignInScreen() {
 
   const apple = useOAuth({ strategy: 'oauth_apple' });
   const google = useOAuth({ strategy: 'oauth_google' });
-  const discord = useOAuth({ strategy: 'oauth_discord' });
-  const github = useOAuth({ strategy: 'oauth_github' });
   const { startAppleAuthenticationFlow } = useSignInWithApple();
 
   const [email, setEmail] = useState('');
@@ -36,11 +34,7 @@ export default function SignInScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   const handleOAuth = async (strategy: OAuthStrategy) => {
-    const flow =
-      strategy === 'oauth_apple' ? apple
-      : strategy === 'oauth_google' ? google
-      : strategy === 'oauth_discord' ? discord
-      : github;
+    const flow = strategy === 'oauth_apple' ? apple : google;
     try {
       const { createdSessionId, setActive: setActiveOAuth } = await flow.startOAuthFlow({
         redirectUrl: Linking.createURL('/'),
@@ -153,20 +147,6 @@ export default function SignInScreen() {
             tone="#fff"
             fg="#1f1f1f"
             onPress={() => handleOAuth('oauth_google')}
-          />
-          <ProviderButton
-            label="Continue with Discord"
-            glyph="D"
-            tone="#5865f2"
-            fg="#fff"
-            onPress={() => handleOAuth('oauth_discord')}
-          />
-          <ProviderButton
-            label="Continue with GitHub"
-            glyph="G"
-            tone="#24292f"
-            fg="#fff"
-            onPress={() => handleOAuth('oauth_github')}
           />
         </View>
 
