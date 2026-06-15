@@ -1,0 +1,103 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description: string;
+}
+const { title, description } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+const ogImage = new URL('/og.svg', Astro.site).href;
+const APP_STORE_URL = 'https://apps.apple.com/app/id6768653080';
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Bankrolly',
+  applicationCategory: 'FinanceApplication',
+  operatingSystem: 'iOS',
+  description:
+    'Poker bankroll and session tracker for iOS. Log cash games, tournaments, hands and live trips and see your hourly rate, ROI, ITM and bankroll curve — all private, on your device.',
+  url: 'https://bankrolly.online',
+  downloadUrl: APP_STORE_URL,
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+};
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0b0f0d" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="canonical" href={canonical} />
+
+    <title>{title}</title>
+    <meta name="description" content={description} />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Bankrolly" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container">
+        <a class="brand" href="/">
+          <img src="/favicon.svg" alt="" width="30" height="30" />
+          <span>Bankrolly</span>
+        </a>
+        <nav class="nav">
+          <a class="nav-link" href="/#features">Features</a>
+          <a class="nav-link" href="/#faq">FAQ</a>
+          <a class="btn btn-sm" href={APP_STORE_URL} target="_blank" rel="noopener" data-appstore>Get the app</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <div class="footer-grid">
+          <a class="brand" href="/">
+            <img src="/favicon.svg" alt="" width="30" height="30" />
+            <span>Bankrolly</span>
+          </a>
+          <nav class="footer-links">
+            <a href="/#features">Features</a>
+            <a href="/#faq">FAQ</a>
+            <a href="/privacy">Privacy</a>
+            <a href="/terms">Terms</a>
+            <a href="/support">Support</a>
+            <a href="mailto:bankrolly@fabulousio.com">Contact</a>
+          </nav>
+        </div>
+        <p class="footer-fine">
+          Bankrolly is a personal bankroll-management and session-tracking tool for informational
+          and analytical purposes only. It does not provide gambling services or facilitate
+          real-money betting. &copy; {new Date().getFullYear()} Bankrolly.
+        </p>
+      </div>
+    </footer>
+
+    <script>
+      import { inject, track } from '@vercel/analytics';
+      inject();
+      document.addEventListener('click', (e) => {
+        const el = (e.target as HTMLElement).closest('[data-appstore]');
+        if (el) track('app_store_click');
+      });
+    </script>
+  </body>
+</html>

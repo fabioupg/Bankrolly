@@ -1,0 +1,156 @@
+---
+import Base from '../layouts/Base.astro';
+import AppStoreButton from '../components/AppStoreButton.astro';
+
+const title = 'Bankrolly — Poker Bankroll & Session Tracker for iOS';
+const description =
+  'Know if you are actually a winning poker player. Track cash sessions, tournaments, hands and live trips, and see your real hourly rate, ROI, ITM and bankroll curve — private, on your device.';
+
+const features = [
+  { ic: '♠', h: 'Cash & tournaments', p: 'Log buy-ins, cash-outs, stakes, venues, rebuys, bounties and finishes in seconds.' },
+  { ic: '✦', h: 'Live trip P&L', p: 'Track a whole Vegas or casino trip — every session plus expenses in one net number.' },
+  { ic: '↗', h: 'Real analytics', p: 'Your true hourly rate, tournament ROI, ITM % and bankroll curve over time.' },
+  { ic: '✓', h: 'Hand history', p: 'Review key spots with position, board, action line and notes you actually revisit.' },
+  { ic: '◆', h: 'Player notes', p: 'Keep reads and tendencies on the regulars you face, ready for next session.' },
+  { ic: '⛨', h: 'Bankroll protection', p: 'Get a heads-up on a losing streak so you can step down stakes or take a break.' },
+];
+
+const faqs = [
+  {
+    q: 'Is this a gambling app?',
+    a: 'No. Bankrolly is a bankroll-management and session-tracking tool for informational and analytical purposes only. It records your sessions, analyzes your results and keeps your data organized — entirely on your device. No betting, no wagering, no money changes hands in the app.',
+  },
+  {
+    q: 'Is my data private?',
+    a: 'Yes. Your sessions, bankroll, hand notes, analytics and trip data are stored locally on your device. We do not sell or share your poker data.',
+  },
+  {
+    q: 'Does it sync across devices?',
+    a: 'Your data is stored on-device by design for privacy. Your Bankrolly Pro subscription is tied to your Apple ID, so it carries over when you sign in on another device.',
+  },
+  {
+    q: 'Which platforms are supported?',
+    a: 'Bankrolly is available on iPhone and iPad via the App Store.',
+  },
+  {
+    q: 'How much does it cost?',
+    a: 'Bankrolly is free to download and start tracking. Bankrolly Pro unlocks unlimited tracking and every analytics chart, with a free trial — you can upgrade right inside the app.',
+  },
+];
+---
+<Base title={title} description={description}>
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container hero-grid">
+      <div>
+        <p class="eyebrow">Poker bankroll &amp; session tracker</p>
+        <h1>Know if you're actually a<br /><span class="text-profit">winning poker player.</span></h1>
+        <p class="lead" style="margin-top:18px">
+          Bankrolly turns your sessions into the numbers that matter. Log every cash game,
+          tournament, hand and live trip — and see your real hourly rate, ROI, ITM and bankroll
+          curve. All on your device, 100% private.
+        </p>
+        <div class="hero-cta">
+          <AppStoreButton />
+        </div>
+        <div class="trust">
+          <span><span class="dot">●</span> 100% on your device</span>
+          <span><span class="dot">●</span> No ads, no tracking</span>
+          <span><span class="dot">●</span> Free to start</span>
+        </div>
+      </div>
+
+      <div class="phone-wrap">
+        <div class="phone" role="img" aria-label="Bankrolly dashboard preview">
+          <div class="scr-label">BANKROLL</div>
+          <div class="scr-hero">
+            <div class="k">TOTAL</div>
+            <div class="v">+€4,820</div>
+            <div class="scr-split">
+              <div><div class="sk">Cash</div><div class="sv">+€3,140</div></div>
+              <div><div class="sk">Tournaments</div><div class="sv">+€1,680</div></div>
+              <div><div class="sk">Sessions</div><div class="sv">128</div></div>
+            </div>
+          </div>
+          <div class="scr-grid">
+            <div class="scr-stat"><div class="sk">This month</div><div class="sv text-profit">+€640</div></div>
+            <div class="scr-stat"><div class="sk">Hourly</div><div class="sv text-profit">+€21/h</div></div>
+            <div class="scr-stat"><div class="sk">MTT ROI</div><div class="sv text-profit">+38%</div></div>
+            <div class="scr-stat"><div class="sk">ITM %</div><div class="sv">24%</div></div>
+          </div>
+          <div class="scr-label" style="margin-top:16px">RECENT</div>
+          <div class="scr-row"><div><div class="n">€1/2 NL — Casino Velden</div><div class="s">4h 30m · cash</div></div><div class="n text-profit">+€310</div></div>
+          <div class="scr-row"><div><div class="n">€220 Deepstack</div><div class="s">12th / 180 · MTT</div></div><div class="n text-profit">+€540</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features">
+    <div class="container">
+      <p class="eyebrow">Everything you track</p>
+      <h2>One app for your whole poker life.</h2>
+      <div class="grid-3">
+        {features.map((f) => (
+          <div class="feature">
+            <div class="ic">{f.ic}</div>
+            <h3>{f.h}</h3>
+            <p>{f.p}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Privacy highlight -->
+  <section class="band">
+    <div class="container privacy-card">
+      <div>
+        <p class="eyebrow">Your data stays yours</p>
+        <h2>Private by design.</h2>
+        <p class="lead" style="margin-top:14px">
+          Bankrolly stores everything locally on your device. No accounts to mine, no data to
+          sell. Export anything to CSV whenever you want — it's your bankroll, your numbers.
+        </p>
+      </div>
+      <ul class="checks">
+        <li><span class="c">✓</span> All sessions &amp; notes stored on-device</li>
+        <li><span class="c">✓</span> We never sell or share your poker data</li>
+        <li><span class="c">✓</span> Full CSV export, anytime</li>
+        <li><span class="c">✓</span> No ads, no third-party tracking</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Free to start CTA -->
+  <section class="band-center">
+    <div class="container">
+      <p class="eyebrow">Free to start</p>
+      <h2>Stop guessing. Start knowing.</h2>
+      <p class="lead">
+        Download Bankrolly free and log your first session in under a minute. Unlock Bankrolly Pro
+        inside the app whenever you're ready.
+      </p>
+      <div class="cta-actions">
+        <AppStoreButton />
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq">
+    <div class="container">
+      <p class="eyebrow" style="text-align:center">FAQ</p>
+      <h2 style="text-align:center">Questions, answered.</h2>
+      <div class="faq">
+        {faqs.map((f) => (
+          <details>
+            <summary>{f.q}</summary>
+            <p>{f.a}</p>
+          </details>
+        ))}
+      </div>
+    </div>
+  </section>
+</Base>
