@@ -56,7 +56,7 @@ Bankrolly is not intended for children under 13 years old.
 
 For privacy-related questions, contact:
 
-bankrolly@fabulousio.com
+support@bankrolly.online
 
 ## Changes
 

@@ -7,7 +7,7 @@ Bankrolly is a poker bankroll and session tracker for iOS. Track cash sessions, 
 Need help or have a question? We're here for you.
 
 * **Support page:** [fabioupg.github.io/Bankrolly/support](https://fabioupg.github.io/Bankrolly/support)
-* **Email:** [bankrolly@fabulousio.com](mailto:bankrolly@fabulousio.com)
+* **Email:** [support@bankrolly.online](mailto:support@bankrolly.online)
 
 We typically respond within 1–2 business days.
 

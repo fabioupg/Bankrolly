@@ -57,7 +57,7 @@ https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 
 ## Contact
 
-bankrolly@fabulousio.com
+support@bankrolly.online
 
 ## Changes
 

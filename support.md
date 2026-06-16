@@ -6,7 +6,7 @@ We're happy to help with any questions about Bankrolly.
 
 ## Contact Us
 
-**Email:** [bankrolly@fabulousio.com](mailto:bankrolly@fabulousio.com)
+**Email:** [support@bankrolly.online](mailto:support@bankrolly.online)
 
 We typically respond within 1–2 business days. Please include your device model and iOS version so we can help you faster.
 
