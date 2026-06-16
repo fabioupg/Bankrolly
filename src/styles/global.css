@@ -115,6 +115,16 @@ h3 { font-size: 19px; font-weight: 700; }
   border: 1px solid var(--border-strong);
   box-shadow: 0 30px 90px rgba(0, 0, 0, .6), 0 0 70px rgba(74, 222, 128, .12);
 }
+.reel-wrap { display: flex; justify-content: center; margin-top: 40px; }
+.reel {
+  width: 300px; max-width: 80vw; height: auto;
+  aspect-ratio: 9 / 16;
+  object-fit: cover;
+  border-radius: 28px;
+  border: 1px solid var(--border-strong);
+  background: #000;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .6), 0 0 70px rgba(74, 222, 128, .10);
+}
 .phone {
   width: 300px; max-width: 80vw; aspect-ratio: 300 / 620;
   background: var(--bg); border: 10px solid #05080a; border-radius: 42px;
