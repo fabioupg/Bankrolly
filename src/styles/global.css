@@ -90,7 +90,15 @@ h3 { font-size: 19px; font-weight: 700; }
 @media (max-width: 720px) { .nav .nav-link { display: none; } }
 
 /* Hero */
-.hero { padding-top: 64px; }
+.hero {
+  padding-top: 64px;
+  background-image:
+    linear-gradient(180deg, rgba(11, 15, 13, 0.72), rgba(11, 15, 13, 0.94) 75%, var(--bg)),
+    url("/hero-bg.jpg");
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+}
 .hero-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 48px; align-items: center; }
 .hero-cta { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 28px; }
 .hero-note { color: var(--dim); font-size: 14px; margin-top: 14px; }
@@ -101,6 +109,12 @@ h3 { font-size: 19px; font-weight: 700; }
 
 /* Phone mockup */
 .phone-wrap { display: flex; justify-content: center; }
+.app-shot {
+  width: 300px; max-width: 78vw; height: auto;
+  border-radius: 40px;
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .6), 0 0 70px rgba(74, 222, 128, .12);
+}
 .phone {
   width: 300px; max-width: 80vw; aspect-ratio: 300 / 620;
   background: var(--bg); border: 10px solid #05080a; border-radius: 42px;
