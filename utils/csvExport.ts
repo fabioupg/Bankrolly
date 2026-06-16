@@ -5,7 +5,15 @@ import { cashProfit, tournamentInvested, tournamentNet, tournamentROI } from './
 
 function csvEscape(value: unknown): string {
   if (value === null || value === undefined) return '';
-  const str = String(value);
+  let str = String(value);
+  // Neutralize CSV/spreadsheet formula injection: a cell beginning with
+  // = + - @ (or a tab/CR) is executed as a formula by Excel/Google Sheets.
+  // Since these CSVs are exported and shared, a crafted note/venue/name could
+  // run code on a recipient's machine. Genuine numeric values (e.g. a negative
+  // profit "-50" or ROI "-15.00") are left intact so numeric columns stay numeric.
+  if (/^[=+\-@\t\r]/.test(str) && !/^-?\d+(\.\d+)?$/.test(str)) {
+    str = `'${str}`;
+  }
   if (/[",\n\r]/.test(str)) {
     return `"${str.replace(/"/g, '""')}"`;
   }
