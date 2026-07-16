@@ -12,8 +12,12 @@ import { initDatabase } from '@/db';
 import { useSessionStore } from '@/store/useSessionStore';
 import { useTournamentStore } from '@/store/useTournamentStore';
 import { useHandStore } from '@/store/useHandStore';
+import { useOnlineSessionStore } from '@/store/useOnlineSessionStore';
+import { useLiveSessionStore } from '@/store/useLiveSessionStore';
 import { usePlayerStore } from '@/store/usePlayerStore';
 import { useTripStore } from '@/store/useTripStore';
+import { useTransactionStore } from '@/store/useTransactionStore';
+import { useStakingStore } from '@/store/useStakingStore';
 import { useSubscriptionStore } from '@/store/useSubscriptionStore';
 import { colors } from '@/theme/colors';
 
@@ -69,6 +73,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     if (!isLoaded) return;
     usePlayerStore.getState().setOwner(userId ?? '');
     useTripStore.getState().setOwner(userId ?? '');
+    useStakingStore.getState().setOwner(userId ?? '');
     const sub = useSubscriptionStore.getState();
     if (!sub.ready) {
       sub.init(userId ?? null).finally(() => SplashScreen.hideAsync().catch(() => {}));
@@ -103,6 +108,9 @@ function DataBoot({ children }: { children: React.ReactNode }) {
           useSessionStore.getState().hydrate(),
           useTournamentStore.getState().hydrate(),
           useHandStore.getState().hydrate(),
+          useOnlineSessionStore.getState().hydrate(),
+          useLiveSessionStore.getState().hydrate(),
+          useTransactionStore.getState().hydrate(),
         ]);
         if (!cancelled) setReady(true);
       } catch (err) {
@@ -126,6 +134,9 @@ function DataBoot({ children }: { children: React.ReactNode }) {
           useSessionStore.getState().hydrate(),
           useTournamentStore.getState().hydrate(),
           useHandStore.getState().hydrate(),
+          useOnlineSessionStore.getState().hydrate(),
+          useLiveSessionStore.getState().hydrate(),
+          useTransactionStore.getState().hydrate(),
         ])
           .then(() => setReady(true))
           .catch((err) => setBootError((err as Error).message));
@@ -215,8 +226,20 @@ export default function RootLayout() {
                   <Stack.Screen name="cash/[id]" options={{ title: 'Cash session' }} />
                   <Stack.Screen name="tournament/new" options={{ title: 'New tournament' }} />
                   <Stack.Screen name="tournament/[id]" options={{ title: 'Tournament' }} />
+                  <Stack.Screen name="live/index" options={{ title: 'Live session' }} />
+                  <Stack.Screen name="live/new" options={{ title: 'Start live session' }} />
+                  <Stack.Screen name="online/new" options={{ title: 'New online session' }} />
+                  <Stack.Screen name="online/[id]" options={{ title: 'Online session' }} />
+                  <Stack.Screen name="import" options={{ title: 'Import from another app' }} />
+                  <Stack.Screen name="staking/index" options={{ title: 'Staking' }} />
+                  <Stack.Screen name="staking/new" options={{ title: 'New staking deal' }} />
+                  <Stack.Screen name="staking/[id]" options={{ title: 'Staking deal' }} />
+                  <Stack.Screen name="transactions/index" options={{ title: 'Transactions' }} />
+                  <Stack.Screen name="transactions/new" options={{ title: 'New transaction' }} />
+                  <Stack.Screen name="transactions/[id]" options={{ title: 'Transaction' }} />
                   <Stack.Screen name="hand/new" options={{ title: 'New hand note' }} />
                   <Stack.Screen name="hand/index" options={{ title: 'Hand history' }} />
+                  <Stack.Screen name="tools/calculator" options={{ title: 'Equity Calculator' }} />
                   <Stack.Screen name="players/index" options={{ title: 'Player notes' }} />
                   <Stack.Screen name="players/new" options={{ title: 'New player' }} />
                   <Stack.Screen name="players/[id]" options={{ title: 'Player' }} />

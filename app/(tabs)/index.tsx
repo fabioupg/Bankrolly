@@ -8,9 +8,15 @@ import { SessionCard } from '@/components/SessionCard';
 import { useDerivedStats, useSettingsStore } from '@/store/useStatsStore';
 import { useSessionStore } from '@/store/useSessionStore';
 import { useTournamentStore } from '@/store/useTournamentStore';
+import { useOnlineSessionStore } from '@/store/useOnlineSessionStore';
 import { useHandStore } from '@/store/useHandStore';
+import { useLiveSessionStore } from '@/store/useLiveSessionStore';
 import { useTripStore } from '@/store/useTripStore';
+import { useStakingStore } from '@/store/useStakingStore';
+import { useTransactionStore, transactionsNet } from '@/store/useTransactionStore';
 import { isTripActive, tripSummary } from '@/utils/calculations';
+import { stakingTotals } from '@/utils/staking';
+import { activeElapsedMs, formatDuration, liveProfit } from '@/utils/liveSession';
 import {
   formatDateShort,
   formatHours,
@@ -28,7 +34,28 @@ export default function Dashboard() {
   const tripExpenses = useTripStore((s) => s.expenses);
   const cash = useSessionStore((s) => s.sessions);
   const tourneys = useTournamentStore((s) => s.tourneys);
+  const live = useLiveSessionStore((s) => s.active);
+  const stakingDeals = useStakingStore((s) => s.deals);
+  const transactions = useTransactionStore((s) => s.transactions);
   const [refreshing, setRefreshing] = useState(false);
+
+  const txNet = useMemo(() => transactionsNet(transactions), [transactions]);
+
+  const staking = useMemo(
+    () =>
+      stakingTotals(
+        stakingDeals.map((d) => ({
+          direction: d.direction as 'backed' | 'backing',
+          buyIn: d.buyIn,
+          percent: d.percent,
+          markup: d.markup,
+          makeupBefore: d.makeupBefore,
+          result: d.result,
+          settled: !!d.settled,
+        })),
+      ),
+    [stakingDeals],
+  );
 
   const activeTrip = useMemo(() => trips.find((t) => isTripActive(t)), [trips]);
   const activeTripSummary = useMemo(
@@ -42,21 +69,59 @@ export default function Dashboard() {
       useSessionStore.getState().hydrate(),
       useTournamentStore.getState().hydrate(),
       useHandStore.getState().hydrate(),
+      useOnlineSessionStore.getState().hydrate(),
+      useLiveSessionStore.getState().hydrate(),
+      useStakingStore.getState().hydrate(),
+      useTransactionStore.getState().hydrate(),
     ]);
     setRefreshing(false);
   }, []);
 
-  const totalTone = stats.totalProfit > 0 ? 'profit' : stats.totalProfit < 0 ? 'loss' : 'neutral';
+  const bankroll = stats.totalProfit + txNet;
+  const totalTone = bankroll > 0 ? 'profit' : bankroll < 0 ? 'loss' : 'neutral';
   const monthTone = stats.thisMonthProfit > 0 ? 'profit' : stats.thisMonthProfit < 0 ? 'loss' : 'neutral';
 
   return (
     <ScreenContainer
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.profit} />}
     >
+      {live ? (
+        <Pressable
+          onPress={() => router.push('/live')}
+          style={({ pressed }) => [
+            styles.liveBanner,
+            live.status === 'paused' && styles.liveBannerPaused,
+            pressed && { opacity: 0.9 },
+          ]}
+        >
+          <View style={styles.liveRow}>
+            <View
+              style={[
+                styles.liveDot,
+                { backgroundColor: live.status === 'running' ? colors.profit : colors.warn },
+              ]}
+            />
+            <Text style={styles.liveLabel}>
+              {live.status === 'running' ? 'LIVE SESSION' : 'SESSION PAUSED'}
+            </Text>
+            <Text style={styles.liveDuration}>{formatDuration(activeElapsedMs(live))}</Text>
+          </View>
+          <View style={styles.liveRow}>
+            <Text style={[styles.liveProfit, { color: pnlColor(liveProfit(live)) }]}>
+              {formatPnL(liveProfit(live), currency)}
+            </Text>
+            <Text style={styles.liveMeta}>
+              {live.venue || live.stakes || 'Live'} · Stack {formatMoney(live.currentStack, currency)}
+            </Text>
+            <Text style={styles.liveChev}>›</Text>
+          </View>
+        </Pressable>
+      ) : null}
+
       <View style={styles.heroCard}>
         <Text style={styles.heroLabel}>BANKROLL</Text>
         <Text style={[styles.heroValue, { color: totalTone === 'profit' ? colors.profit : totalTone === 'loss' ? colors.loss : colors.text }]}>
-          {formatPnL(stats.totalProfit, currency)}
+          {formatPnL(bankroll, currency)}
         </Text>
         <View style={styles.heroSplit}>
           <View>
@@ -64,15 +129,52 @@ export default function Dashboard() {
             <Text style={styles.heroSub}>{formatPnL(stats.cashProfit, currency)}</Text>
           </View>
           <View>
-            <Text style={styles.heroSubLabel}>Tournaments</Text>
+            <Text style={styles.heroSubLabel}>Live MTT</Text>
             <Text style={styles.heroSub}>{formatPnL(stats.tournamentProfit, currency)}</Text>
           </View>
+          <View>
+            <Text style={styles.heroSubLabel}>Online</Text>
+            <Text style={styles.heroSub}>{formatPnL(stats.onlineProfit, currency)}</Text>
+          </View>
+          {txNet !== 0 ? (
+            <Pressable onPress={() => router.push('/transactions')}>
+              <Text style={styles.heroSubLabel}>Deposits & more</Text>
+              <Text style={styles.heroSub}>{formatPnL(txNet, currency)}</Text>
+            </Pressable>
+          ) : null}
           <View>
             <Text style={styles.heroSubLabel}>Sessions</Text>
             <Text style={styles.heroSub}>{stats.totalSessions}</Text>
           </View>
         </View>
       </View>
+
+      {stakingDeals.length > 0 ? (
+        <Pressable
+          onPress={() => router.push('/staking')}
+          style={({ pressed }) => [styles.stakingCard, pressed && { opacity: 0.9 }]}
+        >
+          <View style={styles.stakingHead}>
+            <Text style={styles.stakingLabel}>STAKING</Text>
+            <Text style={styles.liveChev}>›</Text>
+          </View>
+          <Text
+            style={[
+              styles.stakingValue,
+              { color: pnlColor(staking.settledResult + staking.openResult) },
+            ]}
+          >
+            {formatPnL(staking.settledResult + staking.openResult, currency)}
+          </Text>
+          <Text style={styles.stakingMeta}>
+            {staking.makeupYouOwe > 0
+              ? `You owe ${formatMoney(staking.makeupYouOwe, currency)} makeup`
+              : staking.makeupOwedToYou > 0
+              ? `${formatMoney(staking.makeupOwedToYou, currency)} makeup owed to you`
+              : `${stakingDeals.length} deal${stakingDeals.length === 1 ? '' : 's'}`}
+          </Text>
+        </Pressable>
+      ) : null}
 
       {activeTrip && activeTripSummary ? (
         <Pressable
@@ -184,6 +286,7 @@ export default function Dashboard() {
                 currency={currency}
                 onPress={() => {
                   if (entry.type === 'cash') router.push(`/cash/${entry.id}`);
+                  else if (entry.type === 'online') router.push(`/online/${entry.id}`);
                   else router.push(`/tournament/${entry.id}`);
                 }}
               />
@@ -202,6 +305,53 @@ export default function Dashboard() {
 }
 
 const styles = StyleSheet.create({
+  liveBanner: {
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.profit,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  liveBannerPaused: {
+    borderColor: colors.warn,
+  },
+  liveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  liveLabel: {
+    color: colors.textMuted,
+    fontSize: typography.micro,
+    fontWeight: '800',
+    letterSpacing: 1,
+    flex: 1,
+  },
+  liveDuration: {
+    color: colors.text,
+    fontSize: typography.small,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  liveProfit: {
+    fontSize: typography.heading,
+    fontWeight: '800',
+  },
+  liveMeta: {
+    color: colors.textMuted,
+    fontSize: typography.micro,
+    flex: 1,
+  },
+  liveChev: {
+    color: colors.textDim,
+    fontSize: 22,
+  },
   heroCard: {
     backgroundColor: colors.card,
     borderRadius: radius.xl,
@@ -345,5 +495,32 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
     fontWeight: '800',
     marginTop: 2,
+  },
+  stakingCard: {
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    gap: 4,
+  },
+  stakingHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  stakingLabel: {
+    color: colors.textMuted,
+    fontSize: typography.micro,
+    letterSpacing: 1,
+    fontWeight: '700',
+  },
+  stakingValue: {
+    fontSize: typography.title,
+    fontWeight: '800',
+  },
+  stakingMeta: {
+    color: colors.textMuted,
+    fontSize: typography.small,
   },
 });

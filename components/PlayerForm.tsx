@@ -130,7 +130,11 @@ export function PlayerForm({ initial, mode, footerContent }: Props) {
 
   return (
     <SafeAreaView edges={['bottom']} style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+      >
         <FormField
           label="Name"
           placeholder="Real name or main alias"

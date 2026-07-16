@@ -84,6 +84,9 @@ export default function HandHistoryScreen() {
                 <Text style={styles.addLabel}>+ New</Text>
               </Pressable>
             </View>
+            {hands.length > 0 ? (
+              <Text style={styles.hint}>Tap a hand to edit · long-press to delete</Text>
+            ) : null}
 
             <Text style={styles.filterLabel}>Tag</Text>
             <View style={styles.chips}>
@@ -169,7 +172,12 @@ export default function HandHistoryScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <HandNoteCard hand={item} currency={currency} onLongPress={() => onDelete(item.id)} />
+          <HandNoteCard
+            hand={item}
+            currency={currency}
+            onPress={() => router.push({ pathname: '/hand/new', params: { id: item.id } })}
+            onLongPress={() => onDelete(item.id)}
+          />
         )}
       />
     </SafeAreaView>
@@ -190,6 +198,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: typography.heading,
     fontWeight: '700',
+  },
+  hint: {
+    color: colors.textDim,
+    fontSize: typography.micro,
+    marginTop: -spacing.xs,
   },
   addBtn: {
     backgroundColor: colors.accent,

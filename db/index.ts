@@ -43,6 +43,34 @@ CREATE TABLE IF NOT EXISTS tournaments (
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS online_sessions (
+  id TEXT PRIMARY KEY NOT NULL,
+  date TEXT NOT NULL,
+  site TEXT NOT NULL DEFAULT '',
+  total_buy_in REAL NOT NULL DEFAULT 0,
+  total_cash REAL NOT NULL DEFAULT 0,
+  entries TEXT NOT NULL DEFAULT '',
+  notes TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS live_sessions (
+  id TEXT PRIMARY KEY NOT NULL,
+  started_at INTEGER NOT NULL,
+  venue TEXT NOT NULL DEFAULT '',
+  stakes TEXT NOT NULL DEFAULT '',
+  game_type TEXT NOT NULL DEFAULT 'NLH',
+  buy_in REAL NOT NULL DEFAULT 0,
+  current_stack REAL NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'running',
+  paused_ms INTEGER NOT NULL DEFAULT 0,
+  pause_started_at INTEGER,
+  stack_history TEXT NOT NULL DEFAULT '',
+  notes TEXT NOT NULL DEFAULT '',
+  activity_id TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS hand_notes (
   id TEXT PRIMARY KEY NOT NULL,
   session_id TEXT,
@@ -56,6 +84,7 @@ CREATE TABLE IF NOT EXISTS hand_notes (
   result REAL NOT NULL DEFAULT 0,
   tag TEXT NOT NULL DEFAULT 'review',
   notes TEXT NOT NULL DEFAULT '',
+  table_state TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -96,6 +125,35 @@ CREATE TABLE IF NOT EXISTS trips (
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS staking_deals (
+  id TEXT PRIMARY KEY NOT NULL,
+  owner_id TEXT NOT NULL DEFAULT '',
+  direction TEXT NOT NULL DEFAULT 'backed',
+  counterparty TEXT NOT NULL DEFAULT '',
+  date TEXT NOT NULL,
+  buy_in REAL NOT NULL DEFAULT 0,
+  percent REAL NOT NULL DEFAULT 0,
+  markup REAL NOT NULL DEFAULT 1,
+  makeup_before REAL NOT NULL DEFAULT 0,
+  result REAL NOT NULL DEFAULT 0,
+  settled INTEGER NOT NULL DEFAULT 0,
+  settled_date TEXT,
+  note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS bankroll_transactions (
+  id TEXT PRIMARY KEY NOT NULL,
+  date TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'other',
+  amount REAL NOT NULL DEFAULT 0,
+  venue TEXT NOT NULL DEFAULT '',
+  currency TEXT NOT NULL DEFAULT '',
+  notes TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS trip_expenses (
   id TEXT PRIMARY KEY NOT NULL,
   trip_id TEXT NOT NULL,
@@ -110,6 +168,8 @@ CREATE TABLE IF NOT EXISTS trip_expenses (
 const CREATE_INDEXES_SQL = `
 CREATE INDEX IF NOT EXISTS idx_cash_date ON cash_sessions(date);
 CREATE INDEX IF NOT EXISTS idx_tourney_date ON tournaments(date);
+CREATE INDEX IF NOT EXISTS idx_online_date ON online_sessions(date);
+CREATE INDEX IF NOT EXISTS idx_live_status ON live_sessions(status);
 CREATE INDEX IF NOT EXISTS idx_hand_session ON hand_notes(session_id);
 CREATE INDEX IF NOT EXISTS idx_hand_tag ON hand_notes(tag);
 CREATE INDEX IF NOT EXISTS idx_player_owner ON players(owner_id);
@@ -118,6 +178,8 @@ CREATE INDEX IF NOT EXISTS idx_player_hand_player ON player_hands(player_id);
 CREATE INDEX IF NOT EXISTS idx_trip_owner ON trips(owner_id);
 CREATE INDEX IF NOT EXISTS idx_trip_dates ON trips(start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_trip_expense_trip ON trip_expenses(trip_id);
+CREATE INDEX IF NOT EXISTS idx_transaction_date ON bankroll_transactions(date);
+CREATE INDEX IF NOT EXISTS idx_staking_owner ON staking_deals(owner_id);
 CREATE INDEX IF NOT EXISTS idx_cash_trip ON cash_sessions(trip_id);
 CREATE INDEX IF NOT EXISTS idx_tourney_trip ON tournaments(trip_id);
 `;
@@ -137,6 +199,7 @@ export function initDatabase() {
   expoDb.execSync(CREATE_TABLES_SQL);
   ensureColumn('cash_sessions', 'trip_id', 'TEXT');
   ensureColumn('tournaments', 'trip_id', 'TEXT');
+  ensureColumn('hand_notes', 'table_state', "TEXT NOT NULL DEFAULT ''");
   expoDb.execSync(CREATE_INDEXES_SQL);
   initialized = true;
 }
@@ -145,11 +208,15 @@ export function resetDatabase() {
   expoDb.execSync(`
     DROP TABLE IF EXISTS cash_sessions;
     DROP TABLE IF EXISTS tournaments;
+    DROP TABLE IF EXISTS online_sessions;
+    DROP TABLE IF EXISTS live_sessions;
     DROP TABLE IF EXISTS hand_notes;
     DROP TABLE IF EXISTS players;
     DROP TABLE IF EXISTS player_hands;
     DROP TABLE IF EXISTS trips;
     DROP TABLE IF EXISTS trip_expenses;
+    DROP TABLE IF EXISTS bankroll_transactions;
+    DROP TABLE IF EXISTS staking_deals;
   `);
   initialized = false;
   initDatabase();

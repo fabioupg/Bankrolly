@@ -1,7 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCanAdd } from '@/hooks/useCanAdd';
+import { useLiveSessionStore } from '@/store/useLiveSessionStore';
 import { promptUpgrade } from '@/components/UpgradePrompt';
 import { colors, radius, spacing, typography } from '@/theme/colors';
 import type { LimitedKind } from '@/utils/limits';
@@ -12,6 +13,7 @@ export default function QuickAddModal() {
   const hand = useCanAdd('hand');
   const player = useCanAdd('player');
   const trip = useCanAdd('trip');
+  const live = useLiveSessionStore((s) => s.active);
 
   const handleNav = (
     kind: LimitedKind,
@@ -28,11 +30,25 @@ export default function QuickAddModal() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <View style={styles.body}>
+      <ScrollView
+        contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.title}>What did you play?</Text>
         <Text style={styles.subtitle}>Pick a session type to log</Text>
 
         <View style={styles.options}>
+          <OptionCard
+            title={live ? 'Live Session (running)' : 'Live Session'}
+            subtitle="Track stack, hands & notes while you play"
+            glyph="●"
+            tone={colors.profit}
+            onPress={() => {
+              router.dismiss();
+              router.push(live ? '/live' : '/live/new');
+            }}
+          />
           <OptionCard
             title="Cash Game"
             subtitle="Buy-in / cash-out, hourly rate, hands"
@@ -48,6 +64,16 @@ export default function QuickAddModal() {
             tone="#3b6dff"
             state={tournament}
             onPress={() => handleNav('tournament', tournament, '/tournament/new')}
+          />
+          <OptionCard
+            title="Online Session"
+            subtitle="Total buy-ins / cashes, add tournaments"
+            glyph="⌨"
+            tone="#0891b2"
+            onPress={() => {
+              router.dismiss();
+              router.push('/online/new');
+            }}
           />
           <OptionCard
             title="Hand Note"
@@ -73,12 +99,22 @@ export default function QuickAddModal() {
             state={trip}
             onPress={() => handleNav('trip', trip, '/trips/new')}
           />
+          <OptionCard
+            title="Equity Calculator"
+            subtitle="Hand vs hand equity + pot odds"
+            glyph="%"
+            tone="#16a34a"
+            onPress={() => {
+              router.dismiss();
+              router.push('/tools/calculator');
+            }}
+          />
         </View>
 
         <Pressable onPress={() => router.dismiss()} style={styles.cancel}>
           <Text style={styles.cancelLabel}>Cancel</Text>
         </Pressable>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -88,12 +124,13 @@ interface OptionProps {
   subtitle: string;
   glyph: string;
   tone: string;
-  state: ReturnType<typeof useCanAdd>;
+  /** Omit for tools that have no plan limit (e.g. the calculator). */
+  state?: ReturnType<typeof useCanAdd>;
   onPress: () => void;
 }
 
 function OptionCard({ title, subtitle, glyph, tone, state, onPress }: OptionProps) {
-  const showLimit = !state.isPro;
+  const showLimit = state ? !state.isPro : false;
   return (
     <Pressable
       onPress={onPress}
@@ -105,7 +142,7 @@ function OptionCard({ title, subtitle, glyph, tone, state, onPress }: OptionProp
       <View style={styles.optionMeta}>
         <Text style={styles.optionTitle}>{title}</Text>
         <Text style={styles.optionSub}>{subtitle}</Text>
-        {showLimit ? (
+        {state && showLimit ? (
           <Text style={[styles.limit, !state.canAdd && styles.limitFull]}>
             {state.current}/{state.limit} on Free
           </Text>
@@ -122,7 +159,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   body: {
-    flex: 1,
+    flexGrow: 1,
     padding: spacing.lg,
     gap: spacing.lg,
   },

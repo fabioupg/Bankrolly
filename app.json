@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bankrolly",
     "slug": "pokerledger",
-    "version": "1.0.1",
+    "version": "1.1.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "bankrolly",
@@ -17,10 +17,15 @@
       "bundleIdentifier": "com.bankrolly.app",
       "usesAppleSignIn": true,
       "entitlements": {
-        "com.apple.developer.applesignin": ["Default"]
+        "com.apple.developer.applesignin": [
+          "Default"
+        ]
       },
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSSupportsLiveActivities": true,
+        "NSCameraUsageDescription": "Bankrolly lets you photograph a spot or board and attach it to your live session notes.",
+        "NSPhotoLibraryUsageDescription": "Bankrolly lets you attach photos to your live session notes."
       }
     },
     "android": {
@@ -35,7 +40,15 @@
     },
     "plugins": [
       "expo-router",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      "expo-live-activity",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Bankrolly lets you attach photos to your live session notes.",
+          "cameraPermission": "Bankrolly lets you photograph a spot or board and attach it to your live session notes."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false

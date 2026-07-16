@@ -36,7 +36,11 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
     };
     await db.insert(tournaments).values(row);
     const inserted = row as Tournament;
-    set({ tourneys: [inserted, ...get().tourneys] });
+    // Keep the list ordered by date (desc) even when a past tournament is
+    // back-filled, matching what hydrate() returns.
+    set({
+      tourneys: [inserted, ...get().tourneys].sort((a, b) => b.date.localeCompare(a.date)),
+    });
     return inserted;
   },
   update: async (id, patch) => {

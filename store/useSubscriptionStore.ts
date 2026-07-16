@@ -103,7 +103,7 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
           success: false,
           userCanceled: false,
           error:
-            'Your purchase completed but Pro could not be activated. Tap "Restore purchases" or contact bankrolly@fabulousio.com.',
+            'Your purchase completed but Pro could not be activated. Tap "Restore purchases" or contact support@bankrolly.online.',
         };
       }
       return { success: true, userCanceled: false };

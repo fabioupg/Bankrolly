@@ -171,7 +171,11 @@ export function TournamentForm({ initial, mode, footerContent }: Props) {
 
   return (
     <SafeAreaView edges={['bottom']} style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+      >
         <DateField label="Date" value={form.date} onChange={(d) => set('date', d)} />
         <FormField
           label="Name"

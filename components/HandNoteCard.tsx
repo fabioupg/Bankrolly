@@ -2,6 +2,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radius, spacing, typography, pnlColor } from '@/theme/colors';
 import { formatDateShort, formatPnL } from '@/utils/formatters';
 import type { Currency } from '@/utils/formatters';
+import { PlayingCard } from '@/components/PlayingCard';
+import { parseCards } from '@/utils/cards';
 import type { HandNote, HandTag } from '@/db/schema';
 
 const TAG_COLORS: Record<HandTag, string> = {
@@ -32,6 +34,8 @@ interface Props {
 export function HandNoteCard({ hand, currency, onPress, onLongPress }: Props) {
   const tag = (hand.tag as HandTag) ?? 'review';
   const tagColor = TAG_COLORS[tag] ?? colors.textMuted;
+  const heroCards = parseCards(hand.heroCards);
+  const boardCards = parseCards(hand.board);
   return (
     <Pressable
       onPress={onPress}
@@ -52,8 +56,28 @@ export function HandNoteCard({ hand, currency, onPress, onLongPress }: Props) {
       </View>
 
       <View style={styles.cards}>
-        <Text style={styles.heroCards}>{hand.heroCards || '— —'}</Text>
-        {hand.board ? <Text style={styles.board}>vs {hand.board}</Text> : null}
+        {heroCards.length > 0 ? (
+          <View style={styles.cardRow}>
+            {heroCards.map((c) => (
+              <PlayingCard key={`h-${c}`} card={c} height={34} />
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.heroCards}>{hand.heroCards || '— —'}</Text>
+        )}
+
+        {boardCards.length > 0 ? (
+          <>
+            <Text style={styles.vs}>vs</Text>
+            <View style={styles.cardRow}>
+              {boardCards.map((c) => (
+                <PlayingCard key={`b-${c}`} card={c} height={34} />
+              ))}
+            </View>
+          </>
+        ) : hand.board ? (
+          <Text style={styles.board}>vs {hand.board}</Text>
+        ) : null}
       </View>
 
       {hand.actionLine ? (
@@ -118,8 +142,18 @@ const styles = StyleSheet.create({
   cards: {
     flexDirection: 'row',
     gap: spacing.sm,
-    alignItems: 'baseline',
+    alignItems: 'center',
     flexWrap: 'wrap',
+  },
+  cardRow: {
+    flexDirection: 'row',
+    gap: 3,
+    alignItems: 'center',
+  },
+  vs: {
+    color: colors.textDim,
+    fontSize: typography.small,
+    fontWeight: '600',
   },
   heroCards: {
     color: colors.text,

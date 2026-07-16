@@ -9,7 +9,8 @@ interface CashSessionState {
   loading: boolean;
   error: string | null;
   hydrate: () => Promise<void>;
-  add: (input: Omit<NewCashSession, 'id' | 'createdAt'>) => Promise<CashSession>;
+  /** `id` may be supplied so a finished live session keeps its id (and its linked hands). */
+  add: (input: Omit<NewCashSession, 'id' | 'createdAt'> & { id?: string }) => Promise<CashSession>;
   update: (id: string, patch: Partial<NewCashSession>) => Promise<void>;
   remove: (id: string) => Promise<void>;
   byId: (id: string) => CashSession | undefined;
@@ -31,12 +32,16 @@ export const useSessionStore = create<CashSessionState>((set, get) => ({
   add: async (input) => {
     const row: NewCashSession = {
       ...input,
-      id: newId(),
+      id: input.id ?? newId(),
       createdAt: new Date().toISOString(),
     };
     await db.insert(cashSessions).values(row);
     const inserted = row as CashSession;
-    set({ sessions: [inserted, ...get().sessions] });
+    // Keep the list ordered by date (desc) even when a past session is
+    // back-filled, matching what hydrate() returns.
+    set({
+      sessions: [inserted, ...get().sessions].sort((a, b) => b.date.localeCompare(a.date)),
+    });
     return inserted;
   },
   update: async (id, patch) => {

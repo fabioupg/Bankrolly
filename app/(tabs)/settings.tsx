@@ -1,4 +1,6 @@
 import Constants from 'expo-constants';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth, useUser } from '@clerk/clerk-expo';
@@ -11,13 +13,26 @@ import { useSettingsStore } from '@/store/useStatsStore';
 import { useSessionStore } from '@/store/useSessionStore';
 import { useTournamentStore } from '@/store/useTournamentStore';
 import { useHandStore } from '@/store/useHandStore';
+import { useOnlineSessionStore } from '@/store/useOnlineSessionStore';
+import { useLiveSessionStore } from '@/store/useLiveSessionStore';
+import { useTransactionStore } from '@/store/useTransactionStore';
+import { useStakingStore } from '@/store/useStakingStore';
+import { useTripStore } from '@/store/useTripStore';
 import { exportAllAsCsv } from '@/utils/csvExport';
+import { importSessionsCsv } from '@/utils/csvImport';
+import { exportBackup, importBackup, type ImportMode } from '@/utils/backup';
 import { resetDatabase } from '@/db';
 import { useSubscriptionStore } from '@/store/useSubscriptionStore';
 import { colors, radius, spacing, typography } from '@/theme/colors';
 import { CURRENCY_SYMBOLS, getCurrencySymbol } from '@/utils/formatters';
 import type { Currency } from '@/utils/formatters';
 import { useMemo, useState } from 'react';
+
+function formatSize(bytes: number): string {
+  if (bytes >= 1_000_000) return `${(bytes / 1_000_000).toFixed(1)} MB`;
+  if (bytes >= 1_000) return `${Math.round(bytes / 1_000)} KB`;
+  return `${bytes} B`;
+}
 
 const POPULAR_CURRENCIES: Currency[] = [
   'USD', 'EUR', 'GBP', 'CHF', 'AUD', 'CAD', 'NZD', 'JPY',
@@ -33,6 +48,9 @@ export default function SettingsScreen() {
   const tourneys = useTournamentStore((s) => s.tourneys);
   const hands = useHandStore((s) => s.hands);
   const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [backingUp, setBackingUp] = useState(false);
+  const [restoring, setRestoring] = useState(false);
   const [customCode, setCustomCode] = useState('');
   const version = Constants.expoConfig?.version ?? '1.0.0';
   const { signOut } = useAuth();
@@ -68,7 +86,7 @@ export default function SettingsScreen() {
     ? new Date(proEntitlement.expirationDate).toLocaleDateString()
     : null;
   const willRenew = proEntitlement?.willRenew ?? false;
-  const productLabel = proEntitlement?.productIdentifier?.includes('yearly')
+  const productLabel = /yearly|annual/.test(proEntitlement?.productIdentifier ?? '')
     ? 'Yearly'
     : proEntitlement?.productIdentifier?.includes('monthly')
     ? 'Monthly'
@@ -104,12 +122,163 @@ export default function SettingsScreen() {
     }
     setExporting(true);
     try {
-      await exportAllAsCsv({ cash, tourneys, hands });
+      await exportAllAsCsv({
+        cash,
+        tourneys,
+        hands,
+        online: useOnlineSessionStore.getState().sessions,
+        staking: useStakingStore.getState().deals,
+        transactions: useTransactionStore.getState().transactions,
+        trips: useTripStore.getState().trips,
+        tripExpenses: useTripStore.getState().expenses,
+      });
     } catch (err) {
       Alert.alert('Export failed', (err as Error).message);
     } finally {
       setExporting(false);
     }
+  };
+
+  const onImport = async () => {
+    if (!isPro) {
+      router.push('/paywall');
+      return;
+    }
+    let picked: DocumentPicker.DocumentPickerResult;
+    try {
+      picked = await DocumentPicker.getDocumentAsync({
+        type: ['text/csv', 'text/comma-separated-values', 'text/plain'],
+        multiple: true,
+        copyToCacheDirectory: true,
+      });
+    } catch (err) {
+      Alert.alert('Import failed', (err as Error).message);
+      return;
+    }
+    if (picked.canceled || !picked.assets?.length) return;
+
+    setImporting(true);
+    try {
+      // Shared across files so a session can't be imported twice in one run.
+      const existingIds = {
+        cash: new Set(useSessionStore.getState().sessions.map((s) => s.id)),
+        tournament: new Set(useTournamentStore.getState().tourneys.map((t) => t.id)),
+      };
+      let importedCash = 0;
+      let importedTourneys = 0;
+      let duplicates = 0;
+      let invalid = 0;
+      const failures: string[] = [];
+
+      for (const asset of picked.assets) {
+        try {
+          const text = await FileSystem.readAsStringAsync(asset.uri, {
+            encoding: FileSystem.EncodingType.UTF8,
+          });
+          const res = await importSessionsCsv(text, existingIds);
+          if (res.kind === 'cash') importedCash += res.imported;
+          else importedTourneys += res.imported;
+          duplicates += res.duplicates;
+          invalid += res.errors.length;
+        } catch (err) {
+          failures.push(`${asset.name}: ${(err as Error).message}`);
+        }
+      }
+
+      await Promise.all([
+        useSessionStore.getState().hydrate(),
+        useTournamentStore.getState().hydrate(),
+      ]);
+
+      const lines = [`${importedCash} cash sessions and ${importedTourneys} tournaments imported.`];
+      if (duplicates) lines.push(`${duplicates} duplicate row${duplicates === 1 ? '' : 's'} skipped.`);
+      if (invalid) lines.push(`${invalid} invalid row${invalid === 1 ? '' : 's'} skipped.`);
+      lines.push(...failures);
+      Alert.alert(failures.length ? 'Import finished with issues' : 'Import finished', lines.join('\n'));
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // Backup/restore is deliberately not behind Pro: a user whose subscription
+  // lapsed must still be able to get their own data onto a new phone.
+  const onBackup = async () => {
+    setBackingUp(true);
+    try {
+      const res = await exportBackup();
+      Alert.alert(
+        'Backup created',
+        `${res.rows} entries and ${res.photos} photo${res.photos === 1 ? '' : 's'} · ${formatSize(res.bytes)}\n\n` +
+          'Save it to iCloud Drive or AirDrop it to your new phone, then use "Restore backup" there.',
+      );
+    } catch (err) {
+      Alert.alert('Backup failed', (err as Error).message);
+    } finally {
+      setBackingUp(false);
+    }
+  };
+
+  const runRestore = async (uri: string, mode: ImportMode) => {
+    setRestoring(true);
+    try {
+      const res = await importBackup(uri, mode);
+      const lines = [
+        `${res.rows} entries and ${res.photos} photo${res.photos === 1 ? '' : 's'} restored.`,
+      ];
+      if (res.skipped) {
+        lines.push(`${res.skipped} entr${res.skipped === 1 ? 'y' : 'ies'} were already here and were skipped.`);
+      }
+      if (res.liveSessionSkipped) {
+        lines.push(
+          'The running session in the backup was skipped, because a session is already live on this phone.',
+        );
+      }
+      Alert.alert('Restore finished', lines.join('\n'));
+    } catch (err) {
+      Alert.alert('Restore failed', (err as Error).message);
+    } finally {
+      setRestoring(false);
+    }
+  };
+
+  const onRestore = async () => {
+    let picked: DocumentPicker.DocumentPickerResult;
+    try {
+      // The .bankrolly extension is ours, so no MIME filter would match it.
+      picked = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
+    } catch (err) {
+      Alert.alert('Restore failed', (err as Error).message);
+      return;
+    }
+    if (picked.canceled || !picked.assets?.length) return;
+    const { uri } = picked.assets[0];
+
+    Alert.alert(
+      'Restore backup',
+      'Replace makes this phone match the backup exactly — pick this on a new phone.\n\n' +
+        'Merge keeps what is already here and only adds what is missing.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Merge', onPress: () => runRestore(uri, 'merge') },
+        {
+          text: 'Replace',
+          style: 'destructive',
+          onPress: () =>
+            Alert.alert(
+              'Replace everything?',
+              'Every session, tournament, hand, player, trip and photo on this phone is deleted and replaced by the backup. This cannot be undone.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Replace',
+                  style: 'destructive',
+                  onPress: () => runRestore(uri, 'replace'),
+                },
+              ],
+            ),
+        },
+      ],
+    );
   };
 
   const onReset = () => {
@@ -122,11 +291,18 @@ export default function SettingsScreen() {
           text: 'Reset',
           style: 'destructive',
           onPress: async () => {
+            // Dismisses the lock-screen card and its photos before the table
+            // it lives in is dropped.
+            await useLiveSessionStore.getState().discard();
             resetDatabase();
             await Promise.all([
               useSessionStore.getState().hydrate(),
               useTournamentStore.getState().hydrate(),
               useHandStore.getState().hydrate(),
+              useOnlineSessionStore.getState().hydrate(),
+              useLiveSessionStore.getState().hydrate(),
+              useTransactionStore.getState().hydrate(),
+              useStakingStore.getState().hydrate(),
             ]);
             Alert.alert('Done', 'Database has been reset.');
           },
@@ -151,11 +327,16 @@ export default function SettingsScreen() {
               Alert.alert('Could not delete account', (err as Error).message);
               return;
             }
+            await useLiveSessionStore.getState().discard();
             resetDatabase();
             await Promise.all([
               useSessionStore.getState().hydrate(),
               useTournamentStore.getState().hydrate(),
               useHandStore.getState().hydrate(),
+              useOnlineSessionStore.getState().hydrate(),
+              useLiveSessionStore.getState().hydrate(),
+              useTransactionStore.getState().hydrate(),
+              useStakingStore.getState().hydrate(),
             ]);
             try {
               await signOut();
@@ -289,6 +470,16 @@ export default function SettingsScreen() {
           variant="ghost"
           onPress={() => router.push('/players')}
         />
+        <PrimaryButton
+          label="Staking"
+          variant="ghost"
+          onPress={() => router.push('/staking')}
+        />
+        <PrimaryButton
+          label="Transactions"
+          variant="ghost"
+          onPress={() => router.push('/transactions')}
+        />
       </View>
 
       <View style={styles.card}>
@@ -308,7 +499,48 @@ export default function SettingsScreen() {
           </View>
         </View>
         <PrimaryButton label="Export CSV" onPress={onExport} loading={exporting} />
-        <Text style={styles.hint}>Exports cash sessions, tournaments and hand notes as 3 CSV files.</Text>
+        <Text style={styles.hint}>
+          Exports cash sessions, tournaments and hand notes — plus online sessions, staking,
+          trips and transactions when you have any.
+        </Text>
+        <PrimaryButton label="Import CSV" variant="ghost" onPress={onImport} loading={importing} />
+        <Text style={styles.hint}>
+          Imports cash sessions and tournaments from CSV files in the same format as the export.
+          Duplicates are skipped automatically.
+        </Text>
+      </View>
+
+      <View style={styles.card}>
+        <SectionTitle title="Import from another app" />
+        <PrimaryButton
+          label="Import a CSV file"
+          variant="ghost"
+          onPress={() => router.push('/import')}
+        />
+        <Text style={styles.hint}>
+          Switching from Poker Bankroll Tracker, BINK, Left Pocket, Pokerbase or a spreadsheet?
+          Bankrolly reads their CSV export, detects the format automatically and shows a preview
+          before anything is saved. Deposits and costs are kept out of your win rate.
+        </Text>
+      </View>
+
+      <View style={styles.card}>
+        <SectionTitle title="Backup & restore" />
+        <PrimaryButton label="Create backup" onPress={onBackup} loading={backingUp} />
+        <Text style={styles.hint}>
+          One encrypted file with everything: sessions, tournaments, online sessions, hands,
+          players, trips and your live-session note photos.
+        </Text>
+        <PrimaryButton
+          label="Restore backup"
+          variant="ghost"
+          onPress={onRestore}
+          loading={restoring}
+        />
+        <Text style={styles.hint}>
+          Got a new phone or a new iCloud account? Restore the file here. You choose whether it
+          replaces everything or merges into what is already on this phone.
+        </Text>
       </View>
 
       <View style={styles.card}>

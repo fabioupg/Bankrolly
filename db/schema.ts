@@ -33,6 +33,43 @@ export const tournaments = sqliteTable('tournaments', {
   createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const onlineSessions = sqliteTable('online_sessions', {
+  id: text('id').primaryKey(),
+  date: text('date').notNull(),
+  site: text('site').notNull().default(''),
+  totalBuyIn: real('total_buy_in').notNull().default(0),
+  totalCash: real('total_cash').notNull().default(0),
+  // JSON array of individual tournaments folded into this session:
+  // [{ name, buyIn, cash }]. Empty string = a quick total-only session.
+  entries: text('entries').notNull().default(''),
+  notes: text('notes').notNull().default(''),
+  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const liveSessions = sqliteTable('live_sessions', {
+  id: text('id').primaryKey(),
+  // Epoch milliseconds — duration math happens on these directly.
+  startedAt: integer('started_at').notNull(),
+  venue: text('venue').notNull().default(''),
+  stakes: text('stakes').notNull().default(''),
+  gameType: text('game_type').notNull().default('NLH'),
+  buyIn: real('buy_in').notNull().default(0),
+  currentStack: real('current_stack').notNull().default(0),
+  // 'running' | 'paused' | 'ended'. Only one non-ended session exists at a time.
+  status: text('status').notNull().default('running'),
+  // Total paused time so far (ms), excluding a currently running pause.
+  pausedMs: integer('paused_ms').notNull().default(0),
+  // Epoch ms when the current pause began, null while running.
+  pauseStartedAt: integer('pause_started_at'),
+  // JSON array of stack points: [{ t: epochMs, stack: number }].
+  stackHistory: text('stack_history').notNull().default(''),
+  // JSON array of notes: [{ t: epochMs, text: string, photo: string }].
+  notes: text('notes').notNull().default(''),
+  // iOS Live Activity id so the lock-screen card can be updated/stopped.
+  activityId: text('activity_id').notNull().default(''),
+  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const handNotes = sqliteTable('hand_notes', {
   id: text('id').primaryKey(),
   sessionId: text('session_id'),
@@ -46,6 +83,9 @@ export const handNotes = sqliteTable('hand_notes', {
   result: real('result').notNull().default(0),
   tag: text('tag').notNull().default('review'),
   notes: text('notes').notNull().default(''),
+  // JSON snapshot of the visual table builder (TableState) so a saved hand can
+  // be re-opened on the table. Empty string = no table was used.
+  tableState: text('table_state').notNull().default(''),
   createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -87,6 +127,49 @@ export const tripExpenses = sqliteTable('trip_expenses', {
   createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+// One staking arrangement over one action. 'backed' = someone stakes you;
+// 'backing' = you stake someone. Scoped to the signed-in user like players and
+// trips. Settlement maths (markup + makeup) live in utils/staking.ts.
+export const stakingDeals = sqliteTable('staking_deals', {
+  id: text('id').primaryKey(),
+  ownerId: text('owner_id').notNull().default(''),
+  // 'backed' | 'backing'
+  direction: text('direction').notNull().default('backed'),
+  counterparty: text('counterparty').notNull().default(''),
+  date: text('date').notNull(),
+  buyIn: real('buy_in').notNull().default(0),
+  // Fraction of the action staked, 0..100.
+  percent: real('percent').notNull().default(0),
+  // Premium multiplier on the staked buy-in, >= 1.
+  markup: real('markup').notNull().default(1),
+  // Makeup carried into this deal from the counterparty's prior losses.
+  makeupBefore: real('makeup_before').notNull().default(0),
+  // The action's result, cashOut - buyIn (signed).
+  result: real('result').notNull().default(0),
+  // 0 = open, 1 = settled.
+  settled: integer('settled').notNull().default(0),
+  settledDate: text('settled_date'),
+  note: text('note').notNull().default(''),
+  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+// Money that moves the bankroll without being a session: deposits, withdrawals,
+// hotel costs, rakeback. Deliberately kept out of the session tables — a deposit
+// counted as a session would wreck the win rate and the hourly.
+export const bankrollTransactions = sqliteTable('bankroll_transactions', {
+  id: text('id').primaryKey(),
+  date: text('date').notNull(),
+  // 'deposit' | 'withdrawal' | 'expense' | 'bonus' | 'other'
+  kind: text('kind').notNull().default('other'),
+  // Signed: into the bankroll is positive, out of it negative.
+  amount: real('amount').notNull().default(0),
+  venue: text('venue').notNull().default(''),
+  currency: text('currency').notNull().default(''),
+  notes: text('notes').notNull().default(''),
+  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const playerHands = sqliteTable('player_hands', {
   id: text('id').primaryKey(),
   playerId: text('player_id').notNull(),
@@ -100,8 +183,13 @@ export type CashSession = typeof cashSessions.$inferSelect;
 export type NewCashSession = typeof cashSessions.$inferInsert;
 export type Tournament = typeof tournaments.$inferSelect;
 export type NewTournament = typeof tournaments.$inferInsert;
+export type OnlineSession = typeof onlineSessions.$inferSelect;
+export type NewOnlineSession = typeof onlineSessions.$inferInsert;
 export type HandNote = typeof handNotes.$inferSelect;
 export type NewHandNote = typeof handNotes.$inferInsert;
+export type LiveSession = typeof liveSessions.$inferSelect;
+export type NewLiveSession = typeof liveSessions.$inferInsert;
+export type LiveSessionStatus = 'running' | 'paused' | 'ended';
 export type Player = typeof players.$inferSelect;
 export type NewPlayer = typeof players.$inferInsert;
 export type PlayerHand = typeof playerHands.$inferSelect;
@@ -110,6 +198,14 @@ export type Trip = typeof trips.$inferSelect;
 export type NewTrip = typeof trips.$inferInsert;
 export type TripExpense = typeof tripExpenses.$inferSelect;
 export type NewTripExpense = typeof tripExpenses.$inferInsert;
+export type BankrollTransaction = typeof bankrollTransactions.$inferSelect;
+export type NewBankrollTransaction = typeof bankrollTransactions.$inferInsert;
+export type StakingDeal = typeof stakingDeals.$inferSelect;
+export type NewStakingDeal = typeof stakingDeals.$inferInsert;
+export type StakingDirection = 'backed' | 'backing';
+
+export const TRANSACTION_KINDS = ['deposit', 'withdrawal', 'expense', 'bonus', 'other'] as const;
+export type TransactionKind = (typeof TRANSACTION_KINDS)[number];
 
 export const GAME_TYPES = ['NLH', 'PLO', 'Mixed'] as const;
 export const STAKES_PRESETS = ['1/2', '2/5', '5/10', '10/20', '25/50'] as const;

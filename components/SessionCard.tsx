@@ -24,8 +24,22 @@ export function SessionCard({ entry, currency, onPress, onLongPress, compact }: 
       ]}
     >
       <View style={styles.left}>
-        <View style={[styles.badge, { backgroundColor: entry.type === 'cash' ? colors.accentSoft : '#3a2a1f' }]}>
-          <Text style={styles.badgeText}>{entry.type === 'cash' ? 'CASH' : 'MTT'}</Text>
+        <View
+          style={[
+            styles.badge,
+            {
+              backgroundColor:
+                entry.type === 'cash'
+                  ? colors.accentSoft
+                  : entry.type === 'online'
+                  ? '#0e3a44'
+                  : '#3a2a1f',
+            },
+          ]}
+        >
+          <Text style={styles.badgeText}>
+            {entry.type === 'cash' ? 'CASH' : entry.type === 'online' ? 'ONLINE' : 'MTT'}
+          </Text>
         </View>
         <View style={styles.meta}>
           <Text style={styles.title} numberOfLines={1}>{entry.label}</Text>

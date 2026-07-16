@@ -1,4 +1,11 @@
-import type { CashSession, Tournament, Trip, TripExpense, ExpenseCategory } from '@/db/schema';
+import type {
+  CashSession,
+  Tournament,
+  Trip,
+  TripExpense,
+  ExpenseCategory,
+  OnlineSession,
+} from '@/db/schema';
 
 export function cashProfit(s: Pick<CashSession, 'cashOut' | 'buyIn'>): number {
   return s.cashOut - s.buyIn;
@@ -33,13 +40,14 @@ export interface BankrollPoint {
   date: string;
   cumulative: number;
   delta: number;
-  type: 'cash' | 'tournament';
+  type: 'cash' | 'tournament' | 'online';
   label: string;
 }
 
 export function buildBankrollSeries(
   cash: CashSession[],
   tourneys: Tournament[],
+  online: OnlineSession[] = [],
 ): BankrollPoint[] {
   const points: BankrollPoint[] = [];
   for (const c of cash) {
@@ -58,6 +66,15 @@ export function buildBankrollSeries(
       delta: tournamentNet(t),
       type: 'tournament',
       label: t.name,
+    });
+  }
+  for (const o of online) {
+    points.push({
+      date: o.date,
+      cumulative: 0,
+      delta: o.totalCash - o.totalBuyIn,
+      type: 'online',
+      label: o.site || 'Online session',
     });
   }
   points.sort((a, b) => a.date.localeCompare(b.date));
@@ -110,6 +127,76 @@ export function hourlyByVenue(cash: CashSession[]): VenueStat[] {
       rate: hourlyRate(v.profit, v.minutes),
     }))
     .sort((a, b) => b.profit - a.profit);
+}
+
+export interface StakesStat {
+  stakes: string;
+  hours: number;
+  profit: number;
+  rate: number;
+  sessions: number;
+}
+
+export function hourlyByStakes(cash: CashSession[]): StakesStat[] {
+  const map = new Map<string, { minutes: number; profit: number; sessions: number }>();
+  for (const c of cash) {
+    const key = c.stakes || 'Unknown';
+    const cur = map.get(key) ?? { minutes: 0, profit: 0, sessions: 0 };
+    cur.minutes += c.durationMinutes;
+    cur.profit += cashProfit(c);
+    cur.sessions += 1;
+    map.set(key, cur);
+  }
+  return [...map.entries()]
+    .map(([stakes, v]) => ({
+      stakes,
+      hours: v.minutes / 60,
+      profit: v.profit,
+      sessions: v.sessions,
+      rate: hourlyRate(v.profit, v.minutes),
+    }))
+    .sort((a, b) => b.profit - a.profit);
+}
+
+export interface WeekdayStat {
+  label: string;
+  profit: number;
+  sessions: number;
+}
+
+const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+/** Net profit per weekday (Monday first). Always returns all 7 days. */
+export function profitByWeekday(entries: SessionEntry[]): WeekdayStat[] {
+  const out: WeekdayStat[] = WEEKDAY_LABELS.map((label) => ({ label, profit: 0, sessions: 0 }));
+  for (const e of entries) {
+    const d = new Date(e.date);
+    if (Number.isNaN(d.getTime())) continue;
+    const idx = (d.getDay() + 6) % 7;
+    out[idx].profit += e.profit;
+    out[idx].sessions += 1;
+  }
+  return out;
+}
+
+/** Sample standard deviation of per-session results. 0 with fewer than 2 sessions. */
+export function profitStdDev(values: number[]): number {
+  if (values.length < 2) return 0;
+  const mean = values.reduce((s, v) => s + v, 0) / values.length;
+  const variance = values.reduce((s, v) => s + (v - mean) ** 2, 0) / (values.length - 1);
+  return Math.sqrt(variance);
+}
+
+/** Biggest peak-to-trough drop of the cumulative bankroll, as a positive number. */
+export function maxDrawdown(series: BankrollPoint[]): number {
+  let peak = 0;
+  let worst = 0;
+  for (const p of series) {
+    if (p.cumulative > peak) peak = p.cumulative;
+    const dd = peak - p.cumulative;
+    if (dd > worst) worst = dd;
+  }
+  return worst;
 }
 
 export interface RoiPoint {
@@ -174,7 +261,7 @@ export interface SessionEntry {
   id: string;
   date: string;
   label: string;
-  type: 'cash' | 'tournament';
+  type: 'cash' | 'tournament' | 'online';
   profit: number;
   durationMinutes?: number;
 }
@@ -182,6 +269,7 @@ export interface SessionEntry {
 export function unifySessions(
   cash: CashSession[],
   tourneys: Tournament[],
+  online: OnlineSession[] = [],
 ): SessionEntry[] {
   const out: SessionEntry[] = [];
   for (const c of cash) {
@@ -201,6 +289,15 @@ export function unifySessions(
       label: `${t.name} • ${t.format}`,
       type: 'tournament',
       profit: tournamentNet(t),
+    });
+  }
+  for (const o of online) {
+    out.push({
+      id: o.id,
+      date: o.date,
+      label: `${o.site || 'Online'} • online`,
+      type: 'online',
+      profit: o.totalCash - o.totalBuyIn,
     });
   }
   return out.sort((a, b) => b.date.localeCompare(a.date));

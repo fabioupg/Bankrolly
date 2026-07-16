@@ -1,19 +1,45 @@
-import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useRef, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActionBuilder } from '@/components/ActionBuilder';
+import { CardSelectField } from '@/components/CardSelectField';
 import { Chip } from '@/components/Chip';
+import { EquityCalculator } from '@/components/EquityCalculator';
 import { FormField } from '@/components/FormField';
+import { HandShareButton } from '@/components/HandShareButton';
+import { PokerTable } from '@/components/PokerTable';
+import { SeatActionSheet } from '@/components/SeatActionSheet';
+import {
+  GAME_VARIANTS,
+  VARIANT_HOLE_CARDS,
+  VARIANT_LABELS,
+  parseCards,
+  serializeCards,
+  variantForCardCount,
+  type GameVariant,
+} from '@/utils/cards';
+import {
+  createTableState,
+  tableToActionLine,
+  withButton,
+  withHeroSeat,
+  MIN_PLAYERS,
+  MAX_PLAYERS,
+  type TableState,
+} from '@/utils/table';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { promptUpgrade } from '@/components/UpgradePrompt';
 import { useCanAdd } from '@/hooks/useCanAdd';
 import { useHandStore } from '@/store/useHandStore';
+import { usePlayerStore } from '@/store/usePlayerStore';
 import {
   HAND_TAGS,
   POSITIONS,
   STREETS,
+  type ActionType,
   type HandTag,
+  type Player,
   type Position,
   type SessionType,
   type Street,
@@ -34,44 +60,154 @@ interface FormState {
   notes: string;
 }
 
+const PLAYER_COUNTS = Array.from(
+  { length: MAX_PLAYERS - MIN_PLAYERS + 1 },
+  (_, i) => i + MIN_PLAYERS,
+);
+
+/** Rebuild table state from a saved JSON snapshot, or start a fresh 6-max table. */
+function parseTableState(raw: string | null | undefined): TableState {
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.seats) && typeof parsed.playerCount === 'number') {
+        return parsed as TableState;
+      }
+    } catch {
+      // Corrupt/legacy value — fall through to a fresh table.
+    }
+  }
+  return createTableState(6);
+}
+
 export default function NewHandNote() {
-  const { sessionId, sessionType: typeParam } = useLocalSearchParams<{
+  const { sessionId, sessionType: typeParam, id } = useLocalSearchParams<{
     sessionId?: string;
     sessionType?: SessionType;
+    id?: string;
   }>();
+  const editing = Boolean(id);
+  const existing = useHandStore((s) => (id ? s.hands.find((h) => h.id === id) ?? null : null));
   const initialType: SessionType = typeParam === 'tournament' ? 'tournament' : 'cash';
-  const [form, setForm] = useState<FormState>({
-    sessionType: initialType,
-    street: 'preflop',
-    position: 'BTN',
-    heroCards: '',
-    board: '',
-    villainRangeNotes: '',
-    actionLine: '',
-    result: '',
-    tag: 'review',
-    notes: '',
-  });
+  // Prefill from the existing note when editing; useState initializer runs once,
+  // so later store updates don't clobber the user's in-progress edits.
+  const [form, setForm] = useState<FormState>(() => ({
+    sessionType: (existing?.sessionType as SessionType) ?? initialType,
+    street: (existing?.street as Street) ?? 'preflop',
+    position: (existing?.position as Position) ?? 'BTN',
+    heroCards: existing?.heroCards ?? '',
+    board: existing?.board ?? '',
+    villainRangeNotes: existing?.villainRangeNotes ?? '',
+    actionLine: existing?.actionLine ?? '',
+    result: existing?.result != null ? String(existing.result) : '',
+    tag: (existing?.tag as HandTag) ?? 'review',
+    notes: existing?.notes ?? '',
+  }));
+  // Hold'em vs Omaha picker; inferred from the saved hero-card count when
+  // editing so a stored PLO hand re-opens with the right limit.
+  const [variant, setVariant] = useState<GameVariant>(() =>
+    variantForCardCount(parseCards(existing?.heroCards ?? '').length),
+  );
+  const heroMax = VARIANT_HOLE_CARDS[variant];
   const [submitting, setSubmitting] = useState(false);
   const add = useHandStore((s) => s.add);
+  const update = useHandStore((s) => s.update);
   const limit = useCanAdd('hand');
+  const players = usePlayerStore((s) => s.players);
+
+  // Visual table builder state (mirrored into actionLine + saved as JSON).
+  const [table, setTable] = useState<TableState>(() => parseTableState(existing?.tableState));
+  const [seatSheet, setSeatSheet] = useState<number | null>(null);
+  // Monotonic counter for action ordering; seed past the highest saved seq.
+  const seqRef = useRef(
+    Math.max(0, ...table.seats.flatMap((s) => s.actions.map((a) => a.seq))) + 1,
+  );
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((s) => ({ ...s, [key]: value }));
+
+  const setPlayerCount = (count: number) => setTable((t) => createTableState(count, t));
+
+  /** Switch game variant; trim hero cards that no longer fit the new limit. */
+  const setVariantAndTrim = (v: GameVariant) => {
+    setVariant(v);
+    const max = VARIANT_HOLE_CARDS[v];
+    const cards = parseCards(form.heroCards);
+    if (cards.length > max) set('heroCards', serializeCards(cards.slice(0, max)));
+  };
+
+  const assignPlayer = (seatIndex: number, player: Player | null) =>
+    setTable((t) => ({
+      ...t,
+      seats: t.seats.map((s) =>
+        s.index === seatIndex
+          ? {
+              ...s,
+              playerId: player?.id ?? null,
+              name: player ? player.nickname || player.name : s.isHero ? 'Hero' : '',
+            }
+          : s,
+      ),
+    }));
+
+  const setHeroSeat = (seatIndex: number) => setTable((t) => withHeroSeat(t, seatIndex));
+  const setButtonSeat = (seatIndex: number) => setTable((t) => withButton(t, seatIndex));
+
+  const setSeatCards = (seatIndex: number, value: string) =>
+    setTable((t) => ({
+      ...t,
+      seats: t.seats.map((s) => (s.index === seatIndex ? { ...s, cards: value } : s)),
+    }));
+
+  const addSeatAction = (seatIndex: number, action: ActionType, size: string) =>
+    setTable((t) => ({
+      ...t,
+      seats: t.seats.map((s) =>
+        s.index === seatIndex
+          ? {
+              ...s,
+              actions: [...s.actions, { street: form.street, action, size, seq: seqRef.current++ }],
+            }
+          : s,
+      ),
+    }));
+
+  const clearSeatActions = (seatIndex: number) =>
+    setTable((t) => ({
+      ...t,
+      seats: t.seats.map((s) =>
+        s.index === seatIndex
+          ? { ...s, actions: s.actions.filter((a) => a.street !== form.street) }
+          : s,
+      ),
+    }));
+
+  const applyTableToActionLine = () => {
+    const text = tableToActionLine(table);
+    if (!text.trim()) {
+      Alert.alert('Empty table', 'Assign at least one action on the table first.');
+      return;
+    }
+    set('actionLine', form.actionLine.trim() ? `${form.actionLine.trim()}\n${text}` : text);
+    // Sync the hero's seat position into the form when it maps to a known chip.
+    const heroPos = table.seats.find((s) => s.isHero)?.position as Position | undefined;
+    if (heroPos && POSITIONS.includes(heroPos)) set('position', heroPos);
+  };
 
   const onSave = async () => {
     if (!form.actionLine.trim() && !form.notes.trim() && !form.heroCards.trim()) {
       Alert.alert('Empty hand', 'Add at least hero cards, action line, or notes.');
       return;
     }
-    if (!limit.canAdd) {
+    // Editing an existing note never adds a new one, so the plan limit only
+    // gates fresh creates.
+    if (!editing && !limit.canAdd) {
       promptUpgrade('hand', limit.current, limit.limit);
       return;
     }
     setSubmitting(true);
     try {
-      await add({
-        sessionId: sessionId ?? null,
+      const payload = {
         sessionType: form.sessionType,
         street: form.street,
         position: form.position,
@@ -82,7 +218,13 @@ export default function NewHandNote() {
         result: Number(form.result) || 0,
         tag: form.tag,
         notes: form.notes.trim(),
-      });
+        tableState: JSON.stringify(table),
+      };
+      if (editing && id) {
+        await update(id, payload);
+      } else {
+        await add({ sessionId: sessionId ?? null, ...payload });
+      }
       router.back();
     } catch (e) {
       Alert.alert('Save failed', (e as Error).message);
@@ -93,7 +235,12 @@ export default function NewHandNote() {
 
   return (
     <SafeAreaView edges={['bottom']} style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+      <Stack.Screen options={{ title: editing ? 'Edit hand' : 'New hand' }} />
+      <ScrollView
+        contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+      >
         {sessionId ? (
           <View style={styles.banner}>
             <Text style={styles.bannerLabel}>Linked to {form.sessionType} session</Text>
@@ -117,6 +264,21 @@ export default function NewHandNote() {
             </View>
           </View>
         )}
+
+        <View>
+          <Text style={styles.fieldLabel}>Game</Text>
+          <View style={styles.chips}>
+            {GAME_VARIANTS.map((v) => (
+              <Chip
+                key={v}
+                label={VARIANT_LABELS[v]}
+                tone="accent"
+                active={variant === v}
+                onPress={() => setVariantAndTrim(v)}
+              />
+            ))}
+          </View>
+        </View>
 
         <View>
           <Text style={styles.fieldLabel}>Street</Text>
@@ -148,20 +310,47 @@ export default function NewHandNote() {
           </View>
         </View>
 
-        <FormField
+        <View style={styles.tableSection}>
+          <View style={styles.tableHeader}>
+            <Text style={styles.fieldLabel}>Table</Text>
+            <Text style={styles.tableHint}>Tap a seat to set player & action</Text>
+          </View>
+          <View style={styles.chips}>
+            {PLAYER_COUNTS.map((n) => (
+              <Chip
+                key={n}
+                label={`${n}`}
+                tone="accent"
+                active={table.playerCount === n}
+                onPress={() => setPlayerCount(n)}
+              />
+            ))}
+          </View>
+          <PokerTable state={table} heroCards={form.heroCards} onSeatPress={setSeatSheet} />
+          <Pressable onPress={applyTableToActionLine} style={styles.tableApply}>
+            <Text style={styles.tableApplyLabel}>↓ Insert table into action line</Text>
+          </Pressable>
+        </View>
+
+        <CardSelectField
           label="Hero cards"
-          placeholder="Ah Kd"
-          autoCapitalize="none"
           value={form.heroCards}
-          onChangeText={(v) => set('heroCards', v)}
-          hint="Use suit letters: h d c s"
+          onChange={(v) => set('heroCards', v)}
+          max={heroMax}
+          disabledCards={parseCards(form.board)}
+          hint={
+            variant === 'NLH'
+              ? 'Tap to pick your hole cards'
+              : `Tap to pick your ${heroMax} ${VARIANT_LABELS[variant]} hole cards`
+          }
         />
-        <FormField
+        <CardSelectField
           label="Board"
-          placeholder="Js 9h 2c | Th | 4s"
-          autoCapitalize="none"
           value={form.board}
-          onChangeText={(v) => set('board', v)}
+          onChange={(v) => set('board', v)}
+          max={5}
+          disabledCards={parseCards(form.heroCards)}
+          hint="Flop, turn and river"
         />
         <FormField
           label="Villain range notes"
@@ -185,6 +374,9 @@ export default function NewHandNote() {
           style={styles.multi}
           hint="Build above with the structured picker, or type freely here."
         />
+
+        <EquityCalculator heroCards={form.heroCards} board={form.board} holeCount={heroMax} />
+
         <FormField
           label="Result (chips / $)"
           placeholder="+250 or -120"
@@ -217,8 +409,36 @@ export default function NewHandNote() {
           style={styles.multi}
         />
 
-        <PrimaryButton label="Save hand" onPress={onSave} loading={submitting} />
+        <HandShareButton
+          heroCards={form.heroCards}
+          board={form.board}
+          position={form.position}
+          street={form.street}
+          result={Number(form.result) || 0}
+          actionLine={form.actionLine}
+        />
+
+        <PrimaryButton label={editing ? 'Save changes' : 'Save hand'} onPress={onSave} loading={submitting} />
       </ScrollView>
+
+      <SeatActionSheet
+        visible={seatSheet != null}
+        seatIndex={seatSheet}
+        state={table}
+        street={form.street}
+        heroCards={form.heroCards}
+        board={form.board}
+        holeCardMax={heroMax}
+        players={players}
+        onClose={() => setSeatSheet(null)}
+        onAssignPlayer={assignPlayer}
+        onSetHero={setHeroSeat}
+        onSetButton={setButtonSeat}
+        onSetCards={setSeatCards}
+        onSetHeroCards={(v) => set('heroCards', v)}
+        onAddAction={addSeatAction}
+        onClearActions={clearSeatActions}
+      />
     </SafeAreaView>
   );
 }
@@ -245,6 +465,31 @@ const styles = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: 'top',
     paddingTop: spacing.sm,
+  },
+  tableSection: {
+    gap: spacing.sm,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+  },
+  tableHint: {
+    color: colors.textDim,
+    fontSize: typography.micro,
+  },
+  tableApply: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    marginTop: spacing.xs,
+  },
+  tableApplyLabel: {
+    color: colors.profit,
+    fontSize: typography.small,
+    fontWeight: '700',
   },
   banner: {
     backgroundColor: colors.accentSoft,

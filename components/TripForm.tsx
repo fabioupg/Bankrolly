@@ -115,7 +115,11 @@ export function TripForm({ initial, mode, footerContent }: Props) {
 
   return (
     <SafeAreaView edges={['bottom']} style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+      >
         <FormField
           label="Trip name"
           placeholder="e.g. WSOP Vegas 2026"

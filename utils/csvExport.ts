@@ -1,7 +1,18 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-import type { CashSession, HandNote, Tournament } from '@/db/schema';
+import type {
+  BankrollTransaction,
+  CashSession,
+  HandNote,
+  OnlineSession,
+  StakingDeal,
+  Tournament,
+  Trip,
+  TripExpense,
+} from '@/db/schema';
 import { cashProfit, tournamentInvested, tournamentNet, tournamentROI } from './calculations';
+import { onlineNet } from './onlineSession';
+import { settleStaking } from './staking';
 
 function csvEscape(value: unknown): string {
   if (value === null || value === undefined) return '';
@@ -132,13 +143,144 @@ export function buildHandsCsv(hands: HandNote[]): string {
   return rowsToCsv(headers, rows);
 }
 
+export function buildOnlineCsv(sessions: OnlineSession[]): string {
+  const headers = [
+    'id',
+    'date',
+    'site',
+    'total_buy_in',
+    'total_cash',
+    'net',
+    'entries_json',
+    'notes',
+    'created_at',
+  ];
+  const rows = sessions.map((s) => [
+    s.id,
+    s.date,
+    s.site,
+    s.totalBuyIn,
+    s.totalCash,
+    onlineNet(s),
+    s.entries,
+    s.notes,
+    s.createdAt,
+  ]);
+  return rowsToCsv(headers, rows);
+}
+
+export function buildStakingCsv(deals: StakingDeal[]): string {
+  const headers = [
+    'id',
+    'date',
+    'direction',
+    'counterparty',
+    'buy_in',
+    'percent',
+    'markup',
+    'makeup_before',
+    'result',
+    'your_result',
+    'makeup_after',
+    'settled',
+    'settled_date',
+    'note',
+    'created_at',
+  ];
+  const rows = deals.map((d) => {
+    const s = settleStaking({
+      direction: d.direction as 'backed' | 'backing',
+      buyIn: d.buyIn,
+      percent: d.percent,
+      markup: d.markup,
+      makeupBefore: d.makeupBefore,
+      result: d.result,
+    });
+    return [
+      d.id,
+      d.date,
+      d.direction,
+      d.counterparty,
+      d.buyIn,
+      d.percent,
+      d.markup,
+      d.makeupBefore,
+      d.result,
+      s.yourResult,
+      s.makeupAfter,
+      d.settled ? 1 : 0,
+      d.settledDate ?? '',
+      d.note,
+      d.createdAt,
+    ];
+  });
+  return rowsToCsv(headers, rows);
+}
+
+export function buildTransactionsCsv(transactions: BankrollTransaction[]): string {
+  const headers = ['id', 'date', 'kind', 'amount', 'venue', 'currency', 'notes', 'created_at'];
+  const rows = transactions.map((t) => [
+    t.id,
+    t.date,
+    t.kind,
+    t.amount,
+    t.venue,
+    t.currency,
+    t.notes,
+    t.createdAt,
+  ]);
+  return rowsToCsv(headers, rows);
+}
+
+export function buildTripsCsv(trips: Trip[]): string {
+  const headers = ['id', 'name', 'destination', 'start_date', 'end_date', 'notes', 'created_at'];
+  const rows = trips.map((t) => [
+    t.id,
+    t.name,
+    t.destination,
+    t.startDate,
+    t.endDate,
+    t.notes,
+    t.createdAt,
+  ]);
+  return rowsToCsv(headers, rows);
+}
+
+export function buildTripExpensesCsv(expenses: TripExpense[]): string {
+  const headers = ['id', 'trip_id', 'category', 'description', 'amount', 'date', 'created_at'];
+  const rows = expenses.map((e) => [
+    e.id,
+    e.tripId,
+    e.category,
+    e.description,
+    e.amount,
+    e.date,
+    e.createdAt,
+  ]);
+  return rowsToCsv(headers, rows);
+}
+
 export interface ExportInput {
   cash: CashSession[];
   tourneys: Tournament[];
   hands: HandNote[];
+  online?: OnlineSession[];
+  staking?: StakingDeal[];
+  transactions?: BankrollTransaction[];
+  trips?: Trip[];
+  tripExpenses?: TripExpense[];
 }
 
-export async function exportAllAsCsv({ cash, tourneys, hands }: ExportInput): Promise<string[]> {
+export async function exportAllAsCsv({
+  cash,
+  tourneys,
+  hands,
+  online = [],
+  staking = [],
+  transactions = [],
+  trips = [],
+  tripExpenses = [],
+}: ExportInput): Promise<string[]> {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const dir = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
   if (!dir) throw new Error('No writable directory available');
@@ -148,6 +290,15 @@ export async function exportAllAsCsv({ cash, tourneys, hands }: ExportInput): Pr
     { name: `bankrolly-tournaments-${stamp}.csv`, body: buildTournamentCsv(tourneys) },
     { name: `bankrolly-hands-${stamp}.csv`, body: buildHandsCsv(hands) },
   ];
+  // The extra datasets only produce a file when there is something in them, so
+  // a user without staking or trips is not asked to share five empty CSVs.
+  if (online.length) files.push({ name: `bankrolly-online-${stamp}.csv`, body: buildOnlineCsv(online) });
+  if (staking.length) files.push({ name: `bankrolly-staking-${stamp}.csv`, body: buildStakingCsv(staking) });
+  if (transactions.length)
+    files.push({ name: `bankrolly-transactions-${stamp}.csv`, body: buildTransactionsCsv(transactions) });
+  if (trips.length) files.push({ name: `bankrolly-trips-${stamp}.csv`, body: buildTripsCsv(trips) });
+  if (tripExpenses.length)
+    files.push({ name: `bankrolly-trip-expenses-${stamp}.csv`, body: buildTripExpensesCsv(tripExpenses) });
 
   const paths: string[] = [];
   for (const f of files) {
