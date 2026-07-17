@@ -58,8 +58,11 @@ export interface SeatPoint {
 
 // Rim radii as a fraction of half the container. < 0.5 keeps seat chips from
 // clipping the container edges.
-const RIM_RX = 0.46;
-const RIM_RY = 0.44;
+// Pulled in far enough that a full seat (cards + circle + name + action badge,
+// ~100pt tall) stays inside the table container even at the 6 and 12 o'clock
+// positions — content outside the container renders but misses touches on Android.
+const RIM_RX = 0.42;
+const RIM_RY = 0.36;
 
 /**
  * Positions for `count` seats around the table rim. Seat 0 (hero) is at the

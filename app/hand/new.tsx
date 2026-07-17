@@ -245,91 +245,99 @@ export default function NewHandNote() {
           <View style={styles.banner}>
             <Text style={styles.bannerLabel}>Linked to {form.sessionType} session</Text>
           </View>
-        ) : (
-          <View>
-            <Text style={styles.fieldLabel}>Session type</Text>
-            <View style={styles.chips}>
-              <Chip
-                label="Cash"
-                tone="accent"
-                active={form.sessionType === 'cash'}
-                onPress={() => set('sessionType', 'cash')}
-              />
-              <Chip
-                label="Tournament"
-                tone="accent"
-                active={form.sessionType === 'tournament'}
-                onPress={() => set('sessionType', 'tournament')}
-              />
-            </View>
-          </View>
-        )}
-
-        <View>
-          <Text style={styles.fieldLabel}>Game</Text>
-          <View style={styles.chips}>
-            {GAME_VARIANTS.map((v) => (
-              <Chip
-                key={v}
-                label={VARIANT_LABELS[v]}
-                tone="accent"
-                active={variant === v}
-                onPress={() => setVariantAndTrim(v)}
-              />
-            ))}
-          </View>
-        </View>
-
-        <View>
-          <Text style={styles.fieldLabel}>Street</Text>
-          <View style={styles.chips}>
-            {STREETS.map((s) => (
-              <Chip
-                key={s}
-                label={s}
-                tone="accent"
-                active={form.street === s}
-                onPress={() => set('street', s)}
-              />
-            ))}
-          </View>
-        </View>
-
-        <View>
-          <Text style={styles.fieldLabel}>Position</Text>
-          <View style={styles.chips}>
-            {POSITIONS.map((p) => (
-              <Chip
-                key={p}
-                label={p}
-                tone="accent"
-                active={form.position === p}
-                onPress={() => set('position', p)}
-              />
-            ))}
-          </View>
-        </View>
+        ) : null}
 
         <View style={styles.tableSection}>
-          <View style={styles.tableHeader}>
-            <Text style={styles.fieldLabel}>Table</Text>
-            <Text style={styles.tableHint}>Tap a seat to set player & action</Text>
-          </View>
-          <View style={styles.chips}>
-            {PLAYER_COUNTS.map((n) => (
-              <Chip
-                key={n}
-                label={`${n}`}
-                tone="accent"
-                active={table.playerCount === n}
-                onPress={() => setPlayerCount(n)}
-              />
-            ))}
-          </View>
-          <PokerTable state={table} heroCards={form.heroCards} onSeatPress={setSeatSheet} />
+          <PokerTable
+            state={table}
+            heroCards={form.heroCards}
+            board={form.board}
+            onSeatPress={setSeatSheet}
+          />
+          <Text style={styles.tableHint}>
+            Tap a seat to set the player, hole cards, hero, dealer button and actions.
+          </Text>
           <Pressable onPress={applyTableToActionLine} style={styles.tableApply}>
             <Text style={styles.tableApplyLabel}>↓ Insert table into action line</Text>
           </Pressable>
+        </View>
+
+        <View style={styles.setupCard}>
+          <View style={styles.setupRow}>
+            <Text style={styles.setupLabel}>Players</Text>
+            <View style={styles.chips}>
+              {PLAYER_COUNTS.map((n) => (
+                <Chip
+                  key={n}
+                  label={`${n}`}
+                  tone="accent"
+                  active={table.playerCount === n}
+                  onPress={() => setPlayerCount(n)}
+                />
+              ))}
+            </View>
+          </View>
+          {!sessionId ? (
+            <View style={styles.setupRow}>
+              <Text style={styles.setupLabel}>Type</Text>
+              <View style={styles.chips}>
+                <Chip
+                  label="Cash"
+                  tone="accent"
+                  active={form.sessionType === 'cash'}
+                  onPress={() => set('sessionType', 'cash')}
+                />
+                <Chip
+                  label="Tournament"
+                  tone="accent"
+                  active={form.sessionType === 'tournament'}
+                  onPress={() => set('sessionType', 'tournament')}
+                />
+              </View>
+            </View>
+          ) : null}
+          <View style={styles.setupRow}>
+            <Text style={styles.setupLabel}>Game</Text>
+            <View style={styles.chips}>
+              {GAME_VARIANTS.map((v) => (
+                <Chip
+                  key={v}
+                  label={VARIANT_LABELS[v]}
+                  tone="accent"
+                  active={variant === v}
+                  onPress={() => setVariantAndTrim(v)}
+                />
+              ))}
+            </View>
+          </View>
+          <View style={styles.setupRow}>
+            <Text style={styles.setupLabel}>Street</Text>
+            <View style={styles.chips}>
+              {STREETS.map((s) => (
+                <Chip
+                  key={s}
+                  label={s}
+                  tone="accent"
+                  active={form.street === s}
+                  onPress={() => set('street', s)}
+                />
+              ))}
+            </View>
+          </View>
+          <View style={styles.setupRow}>
+            <Text style={styles.setupLabel}>Position</Text>
+            <View style={styles.chips}>
+              {POSITIONS.map((p) => (
+                <Chip
+                  key={p}
+                  label={p}
+                  tone="accent"
+                  active={form.position === p}
+                  onPress={() => set('position', p)}
+                />
+              ))}
+            </View>
+          </View>
         </View>
 
         <CardSelectField
@@ -349,7 +357,12 @@ export default function NewHandNote() {
           value={form.board}
           onChange={(v) => set('board', v)}
           max={5}
-          disabledCards={parseCards(form.heroCards)}
+          disabledCards={[
+            ...parseCards(form.heroCards),
+            // Villain seat cards are dealt too — one physical card can't be
+            // on the board and in a hand at the same time.
+            ...table.seats.flatMap((s) => (s.isHero ? [] : parseCards(s.cards))),
+          ]}
           hint="Flop, turn and river"
         />
         <FormField
@@ -469,14 +482,28 @@ const styles = StyleSheet.create({
   tableSection: {
     gap: spacing.sm,
   },
-  tableHeader: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-  },
   tableHint: {
     color: colors.textDim,
     fontSize: typography.micro,
+    textAlign: 'center',
+  },
+  setupCard: {
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  setupRow: {
+    gap: 6,
+  },
+  setupLabel: {
+    color: colors.textMuted,
+    fontSize: typography.micro,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
   },
   tableApply: {
     paddingVertical: 12,
