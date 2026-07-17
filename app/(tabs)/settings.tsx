@@ -453,6 +453,8 @@ export default function SettingsScreen() {
         </Text>
       </View>
 
+      <MonthlyGoalsCard />
+
       <View style={styles.card}>
         <SectionTitle title="Notes & trips" />
         <PrimaryButton
@@ -561,6 +563,50 @@ export default function SettingsScreen() {
         <Text style={styles.aboutBody}>Local-first poker bankroll tracker.</Text>
       </View>
     </ScreenContainer>
+  );
+}
+
+function MonthlyGoalsCard() {
+  const profitTarget = useSettingsStore((s) => s.monthlyProfitTarget);
+  const hoursTarget = useSettingsStore((s) => s.monthlyHoursTarget);
+  const setProfitTarget = useSettingsStore((s) => s.setMonthlyProfitTarget);
+  const setHoursTarget = useSettingsStore((s) => s.setMonthlyHoursTarget);
+  // Raw strings so a decimal point can be typed; the store only sees numbers.
+  const [profitRaw, setProfitRaw] = useState(profitTarget ? String(profitTarget) : '');
+  const [hoursRaw, setHoursRaw] = useState(hoursTarget ? String(hoursTarget) : '');
+
+  const toNum = (v: string) => {
+    const n = Number(v.replace(',', '.'));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  };
+
+  return (
+    <View style={styles.card}>
+      <SectionTitle title="Monthly goals" />
+      <FormField
+        label="Profit goal"
+        placeholder="e.g. 2000 — empty = off"
+        keyboardType="decimal-pad"
+        value={profitRaw}
+        onChangeText={(v) => {
+          setProfitRaw(v);
+          setProfitTarget(toNum(v));
+        }}
+      />
+      <FormField
+        label="Hours goal"
+        placeholder="e.g. 40 — empty = off"
+        keyboardType="decimal-pad"
+        value={hoursRaw}
+        onChangeText={(v) => {
+          setHoursRaw(v);
+          setHoursTarget(toNum(v));
+        }}
+      />
+      <Text style={styles.hint}>
+        Shown as a progress card on the dashboard for the current month.
+      </Text>
+    </View>
   );
 }
 

@@ -24,12 +24,15 @@ import {
   formatPercent,
   formatPnL,
   formatRate,
+  startOfMonthISO,
 } from '@/utils/formatters';
 import { colors, pnlColor, radius, spacing, typography } from '@/theme/colors';
 
 export default function Dashboard() {
   const stats = useDerivedStats();
   const currency = useSettingsStore((s) => s.currency);
+  const profitTarget = useSettingsStore((s) => s.monthlyProfitTarget);
+  const hoursTarget = useSettingsStore((s) => s.monthlyHoursTarget);
   const trips = useTripStore((s) => s.trips);
   const tripExpenses = useTripStore((s) => s.expenses);
   const cash = useSessionStore((s) => s.sessions);
@@ -79,6 +82,14 @@ export default function Dashboard() {
 
   const bankroll = stats.totalProfit + txNet;
   const totalTone = bankroll > 0 ? 'profit' : bankroll < 0 ? 'loss' : 'neutral';
+
+  // Minutes played this month across cash and timed tournaments.
+  const monthMinutes = useMemo(() => {
+    const monthStart = startOfMonthISO();
+    return stats.unified
+      .filter((e) => e.date >= monthStart)
+      .reduce((sum, e) => sum + (e.durationMinutes ?? 0), 0);
+  }, [stats.unified]);
   const monthTone = stats.thisMonthProfit > 0 ? 'profit' : stats.thisMonthProfit < 0 ? 'loss' : 'neutral';
 
   return (
@@ -260,6 +271,28 @@ export default function Dashboard() {
         />
       </View>
 
+      {profitTarget > 0 || hoursTarget > 0 ? (
+        <View style={styles.goalsCard}>
+          <Text style={styles.goalsTitle}>MONTHLY GOALS</Text>
+          {profitTarget > 0 ? (
+            <GoalRow
+              label="Profit"
+              current={formatPnL(stats.thisMonthProfit, currency)}
+              target={formatMoney(profitTarget, currency)}
+              pct={Math.max(0, Math.min(1, stats.thisMonthProfit / profitTarget))}
+            />
+          ) : null}
+          {hoursTarget > 0 ? (
+            <GoalRow
+              label="Hours"
+              current={formatHours(monthMinutes)}
+              target={formatHours(hoursTarget * 60)}
+              pct={Math.max(0, Math.min(1, monthMinutes / (hoursTarget * 60)))}
+            />
+          ) : null}
+        </View>
+      ) : null}
+
       <View style={styles.recentSection}>
         <SectionTitle
           title="Recent sessions"
@@ -301,6 +334,40 @@ export default function Dashboard() {
         </Text>
       </View>
     </ScreenContainer>
+  );
+}
+
+function GoalRow({
+  label,
+  current,
+  target,
+  pct,
+}: {
+  label: string;
+  current: string;
+  target: string;
+  pct: number;
+}) {
+  return (
+    <View style={styles.goalRow}>
+      <View style={styles.goalHead}>
+        <Text style={styles.goalLabel}>{label}</Text>
+        <Text style={styles.goalValue}>
+          {current} / {target} · {Math.round(pct * 100)}%
+        </Text>
+      </View>
+      <View style={styles.goalTrack}>
+        <View
+          style={[
+            styles.goalFill,
+            {
+              width: `${pct * 100}%`,
+              backgroundColor: pct >= 1 ? colors.profit : colors.accent,
+            },
+          ]}
+        />
+      </View>
+    </View>
   );
 }
 
@@ -411,6 +478,50 @@ const styles = StyleSheet.create({
   },
   recentSection: {
     gap: spacing.sm,
+  },
+  goalsCard: {
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  goalsTitle: {
+    color: colors.textMuted,
+    fontSize: typography.micro,
+    letterSpacing: 1,
+    fontWeight: '700',
+  },
+  goalRow: {
+    gap: 6,
+  },
+  goalHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  goalLabel: {
+    color: colors.text,
+    fontSize: typography.small,
+    fontWeight: '700',
+  },
+  goalValue: {
+    color: colors.textMuted,
+    fontSize: typography.small,
+    fontVariant: ['tabular-nums'],
+  },
+  goalTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  goalFill: {
+    height: '100%',
+    borderRadius: 4,
   },
   emptyCard: {
     backgroundColor: colors.card,

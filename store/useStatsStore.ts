@@ -38,6 +38,12 @@ import { useOnlineSessionStore } from './useOnlineSessionStore';
 interface SettingsState {
   currency: Currency;
   setCurrency: (c: Currency) => void;
+  /** Monthly profit goal in the display currency; 0 = no goal set. */
+  monthlyProfitTarget: number;
+  setMonthlyProfitTarget: (n: number) => void;
+  /** Monthly hours-played goal; 0 = no goal set. */
+  monthlyHoursTarget: number;
+  setMonthlyHoursTarget: (n: number) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -45,6 +51,10 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       currency: 'USD',
       setCurrency: (currency) => set({ currency }),
+      monthlyProfitTarget: 0,
+      setMonthlyProfitTarget: (monthlyProfitTarget) => set({ monthlyProfitTarget }),
+      monthlyHoursTarget: 0,
+      setMonthlyHoursTarget: (monthlyHoursTarget) => set({ monthlyHoursTarget }),
     }),
     {
       name: 'pokerledger-settings',
