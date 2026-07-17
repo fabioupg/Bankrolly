@@ -289,6 +289,7 @@ export function unifySessions(
       label: `${t.name} • ${t.format}`,
       type: 'tournament',
       profit: tournamentNet(t),
+      durationMinutes: t.durationMinutes || undefined,
     });
   }
   for (const o of online) {

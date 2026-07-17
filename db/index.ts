@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS tournaments (
   finish_position INTEGER NOT NULL DEFAULT 0,
   prize REAL NOT NULL DEFAULT 0,
   bounties REAL NOT NULL DEFAULT 0,
+  duration_minutes INTEGER NOT NULL DEFAULT 0,
   notes TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -200,6 +201,7 @@ export function initDatabase() {
   ensureColumn('cash_sessions', 'trip_id', 'TEXT');
   ensureColumn('tournaments', 'trip_id', 'TEXT');
   ensureColumn('hand_notes', 'table_state', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn('tournaments', 'duration_minutes', 'INTEGER NOT NULL DEFAULT 0');
   expoDb.execSync(CREATE_INDEXES_SQL);
   initialized = true;
 }

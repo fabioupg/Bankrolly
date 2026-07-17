@@ -47,6 +47,7 @@ const tournament = (over: Partial<Tournament> = {}): Tournament => ({
   finishPosition: 3,
   prize: 500,
   bounties: 25,
+  durationMinutes: 0,
   notes: '',
   tripId: null,
   createdAt: '2026-07-14T12:00:00Z',
@@ -167,5 +168,11 @@ describe('groupings', () => {
     const entries = unifySessions([cashSession()], [tournament()], []);
     expect(entries.map((e) => e.type)).toEqual(['tournament', 'cash']);
     expect(entries[0].profit).toBe(350);
+  });
+
+  it('unifySessions carries a recorded tournament duration, drops zero', () => {
+    const entries = unifySessions([], [tournament({ durationMinutes: 300 })], []);
+    expect(entries[0].durationMinutes).toBe(300);
+    expect(unifySessions([], [tournament()], [])[0].durationMinutes).toBeUndefined();
   });
 });

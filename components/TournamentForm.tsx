@@ -33,6 +33,7 @@ interface FormState {
   finishPosition: string;
   prize: string;
   bounties: string;
+  durationMinutes: string;
   notes: string;
   tripId: string | null;
 }
@@ -51,6 +52,7 @@ function toForm(t?: Tournament): FormState {
       finishPosition: '',
       prize: '',
       bounties: '',
+      durationMinutes: '',
       notes: '',
       tripId: null,
     };
@@ -70,6 +72,7 @@ function toForm(t?: Tournament): FormState {
     finishPosition: t.finishPosition ? String(t.finishPosition) : '',
     prize: t.prize ? String(t.prize) : '',
     bounties: t.bounties ? String(t.bounties) : '',
+    durationMinutes: t.durationMinutes ? String(t.durationMinutes) : '',
     notes: t.notes,
     tripId: t.tripId ?? null,
   };
@@ -137,6 +140,7 @@ export function TournamentForm({ initial, mode, footerContent }: Props) {
         finishPosition: Math.floor(Number(form.finishPosition)) || 0,
         prize: Number(form.prize) || 0,
         bounties: Number(form.bounties) || 0,
+        durationMinutes: Math.max(0, Math.floor(Number(form.durationMinutes)) || 0),
         notes: form.notes.trim(),
         tripId: form.tripId,
       };
@@ -284,6 +288,15 @@ export function TournamentForm({ initial, mode, footerContent }: Props) {
             />
           </View>
         </View>
+
+        <FormField
+          label="Duration (minutes)"
+          placeholder="480"
+          keyboardType="number-pad"
+          value={form.durationMinutes}
+          onChangeText={(v) => set('durationMinutes', v)}
+          hint="Optional — unlocks your MTT hourly rate in Analytics"
+        />
 
         <TripPicker
           value={form.tripId}

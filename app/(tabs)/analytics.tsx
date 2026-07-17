@@ -92,6 +92,27 @@ export default function AnalyticsScreen() {
           compact
         />
         <StatCard
+          label="Hourly MTT"
+          value={
+            stats.totalTournamentMinutes > 0 ? formatRate(stats.mttHourlyRate, currency) : '—'
+          }
+          sublabel={
+            stats.totalTournamentMinutes > 0
+              ? formatHours(stats.totalTournamentMinutes)
+              : 'Log tourney durations'
+          }
+          tone={
+            stats.totalTournamentMinutes === 0
+              ? 'neutral'
+              : stats.mttHourlyRate > 0
+              ? 'profit'
+              : stats.mttHourlyRate < 0
+              ? 'loss'
+              : 'neutral'
+          }
+          compact
+        />
+        <StatCard
           label="Streak"
           value={
             stats.streak.length > 0

@@ -60,6 +60,8 @@ export interface DerivedStats {
   onlineProfit: number;
   totalCashMinutes: number;
   hourlyRate: number;
+  totalTournamentMinutes: number;
+  mttHourlyRate: number;
   totalTournamentInvested: number;
   totalTournamentReturn: number;
   tournamentROI: number;
@@ -102,6 +104,10 @@ export function useDerivedStats(sinceIso?: string): DerivedStats {
   const tInvested = tourneys.reduce((sum, t) => sum + tournamentInvested(t), 0);
   const tReturn = tourneys.reduce((sum, t) => sum + t.prize + t.bounties, 0);
   const tournamentProfitTotal = tourneys.reduce((sum, t) => sum + tournamentNet(t), 0);
+  const totalTournamentMinutes = tourneys.reduce((sum, t) => sum + (t.durationMinutes || 0), 0);
+  const timedTournamentProfit = tourneys
+    .filter((t) => t.durationMinutes > 0)
+    .reduce((sum, t) => sum + tournamentNet(t), 0);
   const onlineProfitTotal = online.reduce((sum, o) => sum + onlineNet(o), 0);
 
   const unified = unifySessions(cash, tourneys, online);
@@ -116,6 +122,10 @@ export function useDerivedStats(sinceIso?: string): DerivedStats {
     onlineProfit: onlineProfitTotal,
     totalCashMinutes,
     hourlyRate: hourlyRate(cashProfitTotal, totalCashMinutes),
+    totalTournamentMinutes,
+    // Rate over tournaments that recorded a duration only — mixing in
+    // zero-minute tourneys would inflate the hourly.
+    mttHourlyRate: hourlyRate(timedTournamentProfit, totalTournamentMinutes),
     totalTournamentInvested: tInvested,
     totalTournamentReturn: tReturn,
     tournamentROI: tInvested > 0 ? ((tReturn - tInvested) / tInvested) * 100 : 0,

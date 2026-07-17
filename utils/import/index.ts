@@ -202,6 +202,7 @@ export async function previewImport(
         finishPosition: r.place ?? 0,
         prize: (r.cashOut ?? 0) - r.expenses + r.sharesIn - r.sharesOut,
         bounties: r.bountyWon,
+        durationMinutes: r.durationMinutes ?? 0,
         notes: r.note,
         createdAt: now,
       });

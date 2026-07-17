@@ -239,6 +239,7 @@ function parseTournamentRows(rows: string[][], existingIds: Set<string>): Parsed
       finishPosition: Math.max(0, Math.round(optionalNumber(cellAt(row, idx, 'finish_position')))),
       prize: optionalNumber(cellAt(row, idx, 'prize')),
       bounties: optionalNumber(cellAt(row, idx, 'bounties')),
+      durationMinutes: Math.max(0, Math.round(optionalNumber(cellAt(row, idx, 'duration_minutes')))),
       notes: cellAt(row, idx, 'notes'),
       createdAt: normalizeCreatedAt(cellAt(row, idx, 'created_at')),
     });

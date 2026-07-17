@@ -28,6 +28,8 @@ export const tournaments = sqliteTable('tournaments', {
   finishPosition: integer('finish_position').notNull().default(0),
   prize: real('prize').notNull().default(0),
   bounties: real('bounties').notNull().default(0),
+  // Minutes played; 0 = not recorded. Enables an MTT hourly rate.
+  durationMinutes: integer('duration_minutes').notNull().default(0),
   notes: text('notes').notNull().default(''),
   tripId: text('trip_id'),
   createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
