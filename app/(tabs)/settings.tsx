@@ -26,7 +26,7 @@ import { useSubscriptionStore } from '@/store/useSubscriptionStore';
 import { colors, radius, spacing, typography } from '@/theme/colors';
 import { CURRENCY_SYMBOLS, getCurrencySymbol } from '@/utils/formatters';
 import type { Currency } from '@/utils/formatters';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 function formatSize(bytes: number): string {
   if (bytes >= 1_000_000) return `${(bytes / 1_000_000).toFixed(1)} MB`;
@@ -579,6 +579,15 @@ function MonthlyGoalsCard() {
     const n = Number(v.replace(',', '.'));
     return Number.isFinite(n) && n > 0 ? n : 0;
   };
+
+  // The store hydrates from AsyncStorage after mount (and a backup restore can
+  // rewrite it); resync the raw strings whenever they disagree with the store.
+  useEffect(() => {
+    setProfitRaw((raw) => (toNum(raw) === profitTarget ? raw : profitTarget ? String(profitTarget) : ''));
+  }, [profitTarget]);
+  useEffect(() => {
+    setHoursRaw((raw) => (toNum(raw) === hoursTarget ? raw : hoursTarget ? String(hoursTarget) : ''));
+  }, [hoursTarget]);
 
   return (
     <View style={styles.card}>

@@ -111,8 +111,10 @@ export function todayISO(): string {
 }
 
 export function startOfMonthISO(): string {
+  // Date-only (local) on purpose: session dates are stored both as full ISO
+  // timestamps (forms) and date-only strings (imports). "YYYY-MM-01" compares
+  // lexicographically below both shapes for the same day, so neither kind of
+  // day-one session falls out of "this month".
   const d = new Date();
-  d.setDate(1);
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 }

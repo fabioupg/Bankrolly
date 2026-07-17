@@ -81,6 +81,8 @@ interface Payload {
   createdAt: string;
   app: string;
   currency: string;
+  /** Monthly goal settings; absent in backups written before goals existed. */
+  goals?: { profit: number; hours: number };
   /** Photo file names. Frame i+1 of the file carries the bytes of photos[i]. */
   photos: string[];
   tables: Record<TableKey, Row[]>;
@@ -207,6 +209,10 @@ export async function exportBackup(
     createdAt: new Date().toISOString(),
     app: Constants.expoConfig?.version ?? '',
     currency: useSettingsStore.getState().currency,
+    goals: {
+      profit: useSettingsStore.getState().monthlyProfitTarget,
+      hours: useSettingsStore.getState().monthlyHoursTarget,
+    },
     photos: [...photos.keys()],
     tables,
   };
@@ -389,6 +395,10 @@ async function applyPayload(
 
   if (mode === 'replace' && typeof payload.currency === 'string' && payload.currency) {
     useSettingsStore.getState().setCurrency(payload.currency);
+  }
+  if (mode === 'replace' && payload.goals) {
+    useSettingsStore.getState().setMonthlyProfitTarget(Number(payload.goals.profit) || 0);
+    useSettingsStore.getState().setMonthlyHoursTarget(Number(payload.goals.hours) || 0);
   }
 
   await Promise.all([

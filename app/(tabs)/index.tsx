@@ -83,13 +83,16 @@ export default function Dashboard() {
   const bankroll = stats.totalProfit + txNet;
   const totalTone = bankroll > 0 ? 'profit' : bankroll < 0 ? 'loss' : 'neutral';
 
-  // Minutes played this month across cash and timed tournaments.
-  const monthMinutes = useMemo(() => {
-    const monthStart = startOfMonthISO();
-    return stats.unified
-      .filter((e) => e.date >= monthStart)
-      .reduce((sum, e) => sum + (e.durationMinutes ?? 0), 0);
-  }, [stats.unified]);
+  // Minutes played this month across cash and timed tournaments. monthStart is
+  // a dependency so the card rolls over to the new month on the next render.
+  const monthStart = startOfMonthISO();
+  const monthMinutes = useMemo(
+    () =>
+      stats.unified
+        .filter((e) => e.date >= monthStart)
+        .reduce((sum, e) => sum + (e.durationMinutes ?? 0), 0),
+    [stats.unified, monthStart],
+  );
   const monthTone = stats.thisMonthProfit > 0 ? 'profit' : stats.thisMonthProfit < 0 ? 'loss' : 'neutral';
 
   return (

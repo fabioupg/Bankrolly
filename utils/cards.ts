@@ -1,7 +1,4 @@
-// Card model + sprite-sheet geometry for the visual card picker.
-// The sheet (assets/cards.png) is a 13-column x 4-row grid:
-//   columns = ranks  A K Q J T 9 8 7 6 5 4 3 2  (left -> right)
-//   rows    = suits  spades, hearts, diamonds, clubs  (top -> bottom)
+// Card model for the pickers, the table and the native card renderer.
 // A card is encoded as `${rank}${suit}` with suit in lowercase, e.g. "Ah", "Td".
 
 export const RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'] as const;
@@ -42,18 +39,10 @@ export function variantForCardCount(count: number): GameVariant {
   return 'NLH';
 }
 
-// Pixel geometry of assets/cards.png.
-export const SHEET = { width: 3160, height: 1320, cols: 13, rows: 4 } as const;
-export const CELL_W = SHEET.width / SHEET.cols; // 243.08
-export const CELL_H = SHEET.height / SHEET.rows; // 330
-export const CARD_ASPECT = CELL_W / CELL_H; // ~0.7366 (w/h)
+/** Width/height ratio every rendered card uses. */
+export const CARD_ASPECT = 0.7366;
 
 const SUIT_ROW: Record<string, number> = { s: 0, h: 1, d: 2, c: 3 };
-
-export interface SpritePos {
-  row: number;
-  col: number;
-}
 
 /** Normalize a loose token ("ah", "10H", "Td") to canonical "Ah"/"Th", or null. */
 export function normalizeCard(raw: string): string | null {
@@ -66,16 +55,6 @@ export function normalizeCard(raw: string): string | null {
   if (!RANKS.includes(r as Rank)) return null;
   if (!(s in SUIT_ROW)) return null;
   return `${r}${s}`;
-}
-
-/** Row/column of a card in the sprite sheet, or null if unparseable. */
-export function cardSpritePos(card: string): SpritePos | null {
-  const c = normalizeCard(card);
-  if (!c) return null;
-  const col = RANKS.indexOf(c[0] as Rank);
-  const row = SUIT_ROW[c[1]];
-  if (col < 0 || row === undefined) return null;
-  return { row, col };
 }
 
 /** Parse a stored card string ("Ah Kd", legacy "Js 9h 2c | Th | 4s") into card codes. */
