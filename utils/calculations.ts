@@ -304,6 +304,20 @@ export function unifySessions(
   return out.sort((a, b) => b.date.localeCompare(a.date));
 }
 
+/** Most frequent distinct non-empty values, ranked — for input suggestions. */
+export function topValues(values: string[], n = 5): string[] {
+  const counts = new Map<string, number>();
+  for (const raw of values) {
+    const v = raw.trim();
+    if (!v) continue;
+    counts.set(v, (counts.get(v) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, n)
+    .map(([v]) => v);
+}
+
 export function biggestWins(entries: SessionEntry[], n = 5): SessionEntry[] {
   return [...entries].sort((a, b) => b.profit - a.profit).slice(0, n);
 }

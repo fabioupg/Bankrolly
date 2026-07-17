@@ -20,6 +20,7 @@ import {
 } from '@/db/schema';
 import { colors, radius, spacing, typography, pnlColor } from '@/theme/colors';
 import { formatPnL } from '@/utils/formatters';
+import { topValues } from '@/utils/calculations';
 
 interface FormState {
   date: Date;
@@ -76,6 +77,7 @@ export function CashSessionForm({ initial, mode, onSaved, footerContent }: Props
   const addSession = useSessionStore((s) => s.add);
   const updateSession = useSessionStore((s) => s.update);
   const removeSession = useSessionStore((s) => s.remove);
+  const sessions = useSessionStore((s) => s.sessions);
   const currency = useSettingsStore((s) => s.currency);
   const limit = useCanAdd('cash');
 
@@ -85,6 +87,12 @@ export function CashSessionForm({ initial, mode, onSaved, footerContent }: Props
   const durationMinutes =
     (Math.max(0, Math.floor(Number(form.hours) || 0)) * 60) +
     Math.max(0, Math.floor(Number(form.minutes) || 0));
+
+  // Most-played venues as one-tap suggestions; hide the one already typed.
+  const venueSuggestions = useMemo(
+    () => topValues(sessions.map((s) => s.venue)).filter((v) => v !== form.venue),
+    [sessions, form.venue],
+  );
 
   const customStakes = useMemo(
     () => !STAKES_PRESETS.includes(form.stakes as (typeof STAKES_PRESETS)[number]) && form.stakes !== '',
@@ -174,6 +182,13 @@ export function CashSessionForm({ initial, mode, onSaved, footerContent }: Props
           value={form.venue}
           onChangeText={(v) => set('venue', v)}
         />
+        {venueSuggestions.length > 0 ? (
+          <View style={styles.chips}>
+            {venueSuggestions.map((v) => (
+              <Chip key={v} label={v} onPress={() => set('venue', v)} />
+            ))}
+          </View>
+        ) : null}
 
         <View>
           <Text style={styles.fieldLabel}>Game</Text>

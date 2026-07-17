@@ -12,6 +12,7 @@ import {
   profitStdDev,
   tournamentInvested,
   tournamentNet,
+  topValues,
   tournamentROI,
   unifySessions,
   type BankrollPoint,
@@ -168,6 +169,15 @@ describe('groupings', () => {
     const entries = unifySessions([cashSession()], [tournament()], []);
     expect(entries.map((e) => e.type)).toEqual(['tournament', 'cash']);
     expect(entries[0].profit).toBe(350);
+  });
+
+  it('topValues ranks by frequency and skips blanks', () => {
+    expect(topValues(['Aria', 'Bellagio', 'Aria', ' ', '', 'Wynn', 'Aria', 'Wynn'])).toEqual([
+      'Aria',
+      'Wynn',
+      'Bellagio',
+    ]);
+    expect(topValues([], 3)).toEqual([]);
   });
 
   it('unifySessions carries a recorded tournament duration, drops zero', () => {

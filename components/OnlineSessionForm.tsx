@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Chip } from '@/components/Chip';
 import { DateField } from '@/components/DateField';
 import { FormField } from '@/components/FormField';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -17,6 +18,7 @@ import {
 import type { OnlineSession } from '@/db/schema';
 import { colors, radius, spacing, typography, pnlColor } from '@/theme/colors';
 import { formatPnL } from '@/utils/formatters';
+import { topValues } from '@/utils/calculations';
 
 interface FormState {
   date: Date;
@@ -53,6 +55,13 @@ export function OnlineSessionForm({ initial, mode }: Props) {
   const add = useOnlineSessionStore((s) => s.add);
   const update = useOnlineSessionStore((s) => s.update);
   const remove = useOnlineSessionStore((s) => s.remove);
+  const sessions = useOnlineSessionStore((s) => s.sessions);
+
+  // Most-used sites as one-tap suggestions; hide the one already typed.
+  const siteSuggestions = useMemo(
+    () => topValues(sessions.map((s) => s.site)).filter((v) => v !== form.site),
+    [sessions, form.site],
+  );
   const currency = useSettingsStore((s) => s.currency);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
@@ -130,6 +139,13 @@ export function OnlineSessionForm({ initial, mode }: Props) {
         automaticallyAdjustKeyboardInsets
       >
         <DateField label="Date" value={form.date} onChange={(d) => set('date', d)} />
+        {siteSuggestions.length > 0 ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+            {siteSuggestions.map((v) => (
+              <Chip key={v} label={v} onPress={() => set('site', v)} />
+            ))}
+          </View>
+        ) : null}
         <FormField
           label="Site (optional)"
           placeholder="PokerStars, GGPoker, 888…"
