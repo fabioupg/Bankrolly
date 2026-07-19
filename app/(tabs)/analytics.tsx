@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState, type ReactNode } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { HandHistoryList } from '@/components/HandHistoryList';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { SectionTitle } from '@/components/SectionTitle';
 import { StatCard } from '@/components/StatCard';
@@ -22,7 +24,69 @@ const RANGES = [
 
 type RangeKey = (typeof RANGES)[number]['key'];
 
+type AnalyticsView = 'bankroll' | 'hands';
+
+function ViewSwitch({
+  view,
+  onChange,
+}: {
+  view: AnalyticsView;
+  onChange: (v: AnalyticsView) => void;
+}) {
+  return (
+    <View style={styles.switchRow}>
+      <SwitchButton
+        label="Bankroll"
+        active={view === 'bankroll'}
+        onPress={() => onChange('bankroll')}
+      />
+      <SwitchButton
+        label="Played Hands"
+        active={view === 'hands'}
+        onPress={() => onChange('hands')}
+      />
+    </View>
+  );
+}
+
+function SwitchButton({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.switchBtn,
+        active && styles.switchBtnActive,
+        pressed && { opacity: 0.85 },
+      ]}
+    >
+      <Text style={[styles.switchLabel, active && styles.switchLabelActive]}>{label}</Text>
+    </Pressable>
+  );
+}
+
 export default function AnalyticsScreen() {
+  const [view, setView] = useState<AnalyticsView>('bankroll');
+  const switcher = <ViewSwitch view={view} onChange={setView} />;
+
+  if (view === 'hands') {
+    return (
+      <SafeAreaView edges={['top']} style={styles.handsSafe}>
+        <HandHistoryList headerExtra={switcher} />
+      </SafeAreaView>
+    );
+  }
+  return <BankrollTab switcher={switcher} />;
+}
+
+function BankrollTab({ switcher }: { switcher: ReactNode }) {
   const [range, setRange] = useState<RangeKey>('all');
   const sinceIso = useMemo(() => {
     const r = RANGES.find((x) => x.key === range);
@@ -60,6 +124,7 @@ export default function AnalyticsScreen() {
 
   return (
     <ScreenContainer>
+      {switcher}
       <View style={styles.rangeRow}>
         {RANGES.map((r) => (
           <Chip
@@ -299,6 +364,36 @@ export default function AnalyticsScreen() {
 }
 
 const styles = StyleSheet.create({
+  handsSafe: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.card,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 4,
+    gap: 4,
+  },
+  switchBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+  },
+  switchBtnActive: {
+    backgroundColor: colors.accent,
+  },
+  switchLabel: {
+    color: colors.textMuted,
+    fontSize: typography.small,
+    fontWeight: '700',
+  },
+  switchLabelActive: {
+    color: '#fff',
+  },
   rangeRow: {
     flexDirection: 'row',
     gap: spacing.sm,

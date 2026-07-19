@@ -13,3 +13,8 @@ web-build/
 !.env.example
 ios/
 android/
+
+# Installed agent skills (npx skills add), not app code
+.agents/
+.claude/skills/
+skills-lock.json

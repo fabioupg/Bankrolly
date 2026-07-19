@@ -30,7 +30,11 @@ interface Props {
   heroCards: string;
   /** Community cards, space-separated; empty slots render as outlines. */
   board?: string;
-  onSeatPress: (index: number) => void;
+  onSeatPress?: (index: number) => void;
+  /** Seats rendered faded, e.g. players who folded during a replay. */
+  dimmedSeats?: readonly number[];
+  /** Seat highlighted as currently acting during a replay. */
+  activeSeat?: number | null;
 }
 
 /**
@@ -39,7 +43,14 @@ interface Props {
  * or a tagged villain), the board sits in the middle of the felt, and the
  * dealer button is a white "B" chip. Tap a seat to edit player & actions.
  */
-export function PokerTable({ state, heroCards, board = '', onSeatPress }: Props) {
+export function PokerTable({
+  state,
+  heroCards,
+  board = '',
+  onSeatPress,
+  dimmedSeats,
+  activeSeat = null,
+}: Props) {
   const [width, setWidth] = useState(0);
   const height = width * ASPECT;
   const seats = seatLayout(state.playerCount);
@@ -102,14 +113,18 @@ export function PokerTable({ state, heroCards, board = '', onSeatPress }: Props)
             const lastAction = seat.actions[seat.actions.length - 1];
             const seatCards = seat.isHero ? hero : parseCards(seat.cards);
             const showFaces = seatCards.length > 0;
+            const dimmed = dimmedSeats?.includes(pt.index) ?? false;
+            const active = activeSeat === pt.index;
 
             return (
               <Pressable
                 key={pt.index}
-                onPress={() => onSeatPress(pt.index)}
+                onPress={onSeatPress ? () => onSeatPress(pt.index) : undefined}
+                disabled={!onSeatPress}
                 style={({ pressed }) => [
                   styles.seat,
                   { left, top, width: SEAT_W, height: SEAT_H },
+                  dimmed && styles.seatDimmed,
                   pressed && { opacity: 0.85 },
                 ]}
               >
@@ -133,7 +148,13 @@ export function PokerTable({ state, heroCards, board = '', onSeatPress }: Props)
                   )}
                 </View>
 
-                <View style={[styles.circle, seat.isHero && styles.circleHero]}>
+                <View
+                  style={[
+                    styles.circle,
+                    seat.isHero && styles.circleHero,
+                    active && styles.circleActive,
+                  ]}
+                >
                   <Text style={styles.pos} allowFontScaling={false}>
                     {seat.position}
                   </Text>
@@ -204,6 +225,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     alignItems: 'center',
   },
+  seatDimmed: {
+    opacity: 0.35,
+  },
   seatCards: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -226,6 +250,10 @@ const styles = StyleSheet.create({
   },
   circleHero: {
     borderColor: colors.profit,
+  },
+  circleActive: {
+    borderColor: colors.accent,
+    borderWidth: 3,
   },
   pos: {
     color: colors.text,

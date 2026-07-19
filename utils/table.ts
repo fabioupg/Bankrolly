@@ -202,7 +202,7 @@ const STREET_LABELS: Record<Street, string> = {
   river: 'River',
 };
 
-function seatLabel(seat: TableSeat): string {
+export function seatLabel(seat: TableSeat): string {
   if (seat.isHero) return seat.position ? `Hero (${seat.position})` : 'Hero';
   if (seat.name) return seat.position ? `${seat.name} (${seat.position})` : seat.name;
   return seat.position || `Seat ${seat.index + 1}`;
@@ -235,4 +235,4 @@ export function tableToActionLine(state: TableState): string {
   return lines.join('\n');
 }
 
-export { ACTION_NEEDS_SIZE };
+export { ACTION_NEEDS_SIZE, ACTION_LABELS, STREET_LABELS };

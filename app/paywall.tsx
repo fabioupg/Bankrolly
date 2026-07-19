@@ -149,20 +149,20 @@ export default function PaywallScreen() {
 
         <PlanCard
           label="Yearly"
-          price={priceFor(yearly, '€99.99')}
+          price={priceFor(yearly, '€29.99')}
           per="/ year"
-          badge="SAVE 36%"
+          badge="SAVE 50%"
           subtext={
             yearly?.product?.pricePerMonthString
               ? `${yearly.product.pricePerMonthString} / month`
-              : '≈ €8.33 / month'
+              : '≈ €2.50 / month'
           }
           selected={selected === 'annual'}
           onPress={() => setSelected('annual')}
         />
         <PlanCard
           label="Monthly"
-          price={priceFor(monthly, '€12.99')}
+          price={priceFor(monthly, '€4.99')}
           per="/ month"
           subtext={
             trialEligible

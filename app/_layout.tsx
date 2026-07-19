@@ -239,6 +239,7 @@ export default function RootLayout() {
                   <Stack.Screen name="transactions/[id]" options={{ title: 'Transaction' }} />
                   <Stack.Screen name="hand/new" options={{ title: 'New hand note' }} />
                   <Stack.Screen name="hand/index" options={{ title: 'Hand history' }} />
+                  <Stack.Screen name="hand/replay" options={{ title: 'Hand replay' }} />
                   <Stack.Screen name="tools/calculator" options={{ title: 'Equity Calculator' }} />
                   <Stack.Screen name="players/index" options={{ title: 'Player notes' }} />
                   <Stack.Screen name="players/new" options={{ title: 'New player' }} />
