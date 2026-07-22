@@ -23,8 +23,10 @@ const FEATURES = [
   'Subscription works on all your devices',
 ];
 
-const TOS_URL = 'https://fabioupg.github.io/Bankrolly/terms';
-const PRIVACY_URL = 'https://fabioupg.github.io/Bankrolly/privacy';
+// Served from the Astro site on the `main` branch (Vercel), not GitHub Pages —
+// Pages only stays up while this repo is public.
+const TOS_URL = 'https://www.bankrolly.online/terms';
+const PRIVACY_URL = 'https://www.bankrolly.online/privacy';
 
 export default function PaywallScreen() {
   const offering = useSubscriptionStore((s) => s.offering);
