@@ -5,7 +5,7 @@
 // Everything here is pure so it can be unit-tested; the replay screen just
 // walks the returned steps.
 
-import { STREETS, type Street } from '@/db/schema';
+import { STREETS, type ActionType, type Street } from '@/db/schema';
 import { parseCards } from '@/utils/cards';
 import {
   ACTION_LABELS,
@@ -19,6 +19,11 @@ import {
 
 export interface FlatAction extends SeatActionEntry {
   seatIndex: number;
+  /**
+   * Preformatted step label. Set for actions recovered from the free-text
+   * action line, where the original phrase is better than re-deriving one.
+   */
+  phrase?: string;
 }
 
 export interface ReplayStep {
@@ -70,6 +75,97 @@ export function flattenActions(state: TableState): FlatAction[] {
   return out;
 }
 
+// --- Action-line text fallback ---------------------------------------------
+// Hands built with the ActionBuilder (or typed freely) carry their actions
+// only as text in `handNotes.actionLine`, not as seat actions on the table.
+// So the replayer can still step through them action by action, the text is
+// parsed back into FlatActions here. Format produced by the app:
+//   "Preflop: UTG opens 2.5, Hero (BTN) 3-bets 9, UTG calls"
+//   "Flop (Js 9h 2c): UTG checks, Hero (BTN) bets 5"
+
+const STREET_HEADER = /^\s*(preflop|flop|turn|river)\b[^:]*:\s*(.*)$/i;
+
+// Ordered longest/most-specific first so "3-bets" wins over "bets" and
+// "shoves all-in" over "shoves". Hyphens are optional to catch typed text.
+const VERB_PATTERNS: readonly [RegExp, ActionType][] = [
+  [/\bshoves?\s+all-?in\b/i, 'all-in'],
+  [/\ball-?in\b/i, 'all-in'],
+  [/\b5-?bets?\b/i, '5-bet'],
+  [/\b4-?bets?\b/i, '4-bet'],
+  [/\b3-?bets?\b/i, '3-bet'],
+  [/\bshoves?\b/i, 'shove'],
+  [/\bjams?\b/i, 'shove'],
+  [/\bfolds?\b/i, 'fold'],
+  [/\bchecks?\b/i, 'check'],
+  [/\bcalls?\b/i, 'call'],
+  [/\bopens?\b/i, 'open'],
+  [/\blimps?\b/i, 'limp'],
+  [/\braises?\b/i, 'raise'],
+  [/\bbets?\b/i, 'bet'],
+];
+
+/** Match "Hero (BTN)" / "UTG" / a tagged villain name back to a seat index; -1 if unknown. */
+function matchSeat(who: string, state: TableState): number {
+  if (!who) return -1;
+  const paren = /\(([^)]+)\)\s*$/.exec(who);
+  const bare = who.replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
+  if (bare === 'hero') {
+    const hero = state.seats.find((s) => s.isHero);
+    if (hero) return hero.index;
+  }
+  const pos = (paren ? paren[1] : who).trim().toLowerCase();
+  const byPos = state.seats.find((s) => s.position.toLowerCase() === pos);
+  if (byPos) return byPos.index;
+  const byName = state.seats.find((s) => s.name && s.name.toLowerCase() === bare);
+  return byName ? byName.index : -1;
+}
+
+/**
+ * Parse a free-text action line into ordered FlatActions. Lines starting with
+ * a street header switch the current street; phrases are comma-separated.
+ * Unrecognized phrases are skipped rather than failing the whole parse.
+ */
+export function parseActionLine(actionLine: string, state: TableState): FlatAction[] {
+  if (!actionLine.trim()) return [];
+  const out: FlatAction[] = [];
+  let street: Street = 'preflop';
+  let seq = 1;
+  for (const rawLine of actionLine.split(/\r?\n/)) {
+    let rest = rawLine;
+    const header = STREET_HEADER.exec(rawLine);
+    if (header) {
+      street = header[1].toLowerCase() as Street;
+      rest = header[2];
+    }
+    for (const chunk of rest.split(',')) {
+      const p = chunk.trim();
+      if (!p || p === '—') continue;
+      let matched: { index: number; length: number; action: ActionType } | null = null;
+      for (const [pattern, action] of VERB_PATTERNS) {
+        const m = pattern.exec(p);
+        if (m) {
+          matched = { index: m.index, length: m[0].length, action };
+          break;
+        }
+      }
+      if (!matched) continue;
+      const who = p.slice(0, matched.index).trim();
+      const size = p.slice(matched.index + matched.length).trim();
+      out.push({
+        street,
+        action: matched.action,
+        size,
+        seq: seq++,
+        seatIndex: matchSeat(who, state),
+        phrase: p,
+      });
+    }
+  }
+  // Free text may list streets out of order; the step builder only walks forward.
+  out.sort((a, b) => streetOrder(a.street) - streetOrder(b.street) || a.seq - b.seq);
+  return out;
+}
+
 function actionLabel(seat: TableSeat | undefined, a: FlatAction): string {
   const who = seat ? seatLabel(seat) : `Seat ${a.seatIndex + 1}`;
   const verb = ACTION_LABELS[a.action] ?? a.action;
@@ -90,9 +186,18 @@ function boardLabel(street: Street, cards: string[]): string {
  * reveal per street, and one step per seat action. If the saved board runs
  * deeper than the last betting street (e.g. all-in on the flop), the remaining
  * streets are dealt out at the end like a real replayer.
+ *
+ * When the table carries no seat actions (hand written via the ActionBuilder
+ * or typed freely), the actions are recovered from `actionLine` text instead,
+ * so those hands still replay action by action.
  */
-export function buildReplaySteps(state: TableState, board: string): ReplayStep[] {
-  const actions = flattenActions(state);
+export function buildReplaySteps(
+  state: TableState,
+  board: string,
+  actionLine = '',
+): ReplayStep[] {
+  const tableActions = flattenActions(state);
+  const actions = tableActions.length > 0 ? tableActions : parseActionLine(actionLine, state);
   const boardCards = parseCards(board).slice(0, 5);
   const boardCountFor = (s: Street) => Math.min(BOARD_COUNT[s], boardCards.length);
 
@@ -129,12 +234,16 @@ export function buildReplaySteps(state: TableState, board: string): ReplayStep[]
   for (const a of actions) {
     advanceTo(a.street);
     applied.push(a);
-    if (a.action === 'fold' && !folded.includes(a.seatIndex)) folded.push(a.seatIndex);
+    // seatIndex is -1 for text-parsed actions whose actor couldn't be mapped
+    // to a seat; those still get a step, just without seat highlight/fold dim.
+    if (a.action === 'fold' && a.seatIndex >= 0 && !folded.includes(a.seatIndex)) {
+      folded.push(a.seatIndex);
+    }
     steps.push({
       kind: 'action',
       street,
-      actorSeat: a.seatIndex,
-      label: actionLabel(state.seats[a.seatIndex], a),
+      actorSeat: a.seatIndex >= 0 ? a.seatIndex : null,
+      label: a.phrase ?? actionLabel(state.seats[a.seatIndex], a),
       boardCount: boardCountFor(street),
       folded: [...folded],
       applied: [...applied],

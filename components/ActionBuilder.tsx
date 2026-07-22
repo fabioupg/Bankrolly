@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Chip } from '@/components/Chip';
+import { parseCards } from '@/utils/cards';
 import { ACTIONS, POSITIONS, STREETS, type ActionType, type Position, type Street } from '@/db/schema';
 import { colors, radius, spacing, typography } from '@/theme/colors';
 
@@ -13,12 +14,26 @@ interface BuiltAction {
 
 interface BuiltStreet {
   street: Street;
-  board: string;
   actions: BuiltAction[];
 }
 
 interface Props {
   onApply: (text: string) => void;
+  /** Board already picked above (e.g. "8d 8c Qd"); shown per-street, not re-entered here. */
+  board?: string;
+}
+
+const BOARD_SLICE: Record<Exclude<Street, 'preflop'>, [number, number]> = {
+  flop: [0, 3],
+  turn: [3, 4],
+  river: [4, 5],
+};
+
+/** This street's board cards, sliced from the shared board field. */
+function boardForStreet(street: Street, boardCards: string[]): string {
+  if (street === 'preflop') return '';
+  const [start, end] = BOARD_SLICE[street];
+  return boardCards.slice(start, end).join(' ');
 }
 
 const ACTION_NEEDS_SIZE: Record<ActionType, boolean> = {
@@ -58,10 +73,9 @@ const STREET_LABELS: Record<Street, string> = {
   river: 'River',
 };
 
-export function ActionBuilder({ onApply }: Props) {
-  const [streets, setStreets] = useState<BuiltStreet[]>([
-    { street: 'preflop', board: '', actions: [] },
-  ]);
+export function ActionBuilder({ onApply, board = '' }: Props) {
+  const boardCards = parseCards(board);
+  const [streets, setStreets] = useState<BuiltStreet[]>([{ street: 'preflop', actions: [] }]);
   const [activeStreet, setActiveStreet] = useState<Street>('preflop');
   const [position, setPosition] = useState<Position>('UTG');
   const [action, setAction] = useState<ActionType>('open');
@@ -70,7 +84,7 @@ export function ActionBuilder({ onApply }: Props) {
   const ensureStreet = (street: Street) => {
     setStreets((prev) => {
       if (prev.find((s) => s.street === street)) return prev;
-      return [...prev, { street, board: '', actions: [] }];
+      return [...prev, { street, actions: [] }];
     });
     setActiveStreet(street);
   };
@@ -79,10 +93,6 @@ export function ActionBuilder({ onApply }: Props) {
     if (street === 'preflop') return;
     setStreets((prev) => prev.filter((s) => s.street !== street));
     if (activeStreet === street) setActiveStreet('preflop');
-  };
-
-  const updateBoard = (street: Street, board: string) => {
-    setStreets((prev) => prev.map((s) => (s.street === street ? { ...s, board } : s)));
   };
 
   const addAction = () => {
@@ -111,12 +121,13 @@ export function ActionBuilder({ onApply }: Props) {
   };
 
   const clearAll = () => {
-    setStreets([{ street: 'preflop', board: '', actions: [] }]);
+    setStreets([{ street: 'preflop', actions: [] }]);
     setActiveStreet('preflop');
     setSize('');
   };
 
-  const text = useMemo(() => buildText(streets), [streets]);
+  const text = useMemo(() => buildText(streets, boardCards), [streets, boardCards]);
+  const activeBoard = boardForStreet(activeStreet, boardCards);
 
   return (
     <View style={styles.wrap}>
@@ -157,20 +168,12 @@ export function ActionBuilder({ onApply }: Props) {
       </View>
 
       {activeStreet !== 'preflop' ? (
-        <TextInput
-          value={streets.find((s) => s.street === activeStreet)?.board ?? ''}
-          onChangeText={(v) => updateBoard(activeStreet, v)}
-          placeholder={
-            activeStreet === 'flop'
-              ? 'Flop cards e.g. Js 9h 2c'
-              : activeStreet === 'turn'
-              ? 'Turn card e.g. Th'
-              : 'River card e.g. 4s'
-          }
-          placeholderTextColor={colors.textDim}
-          autoCapitalize="none"
-          style={styles.boardInput}
-        />
+        <View style={styles.boardRow}>
+          <Text style={styles.boardRowLabel}>{STREET_LABELS[activeStreet]} board</Text>
+          <Text style={activeBoard ? styles.boardRowValue : styles.boardRowEmpty}>
+            {activeBoard || 'Pick cards in the Board field above'}
+          </Text>
+        </View>
       ) : null}
 
       <Text style={styles.miniLabel}>Position</Text>
@@ -247,18 +250,19 @@ function actionToPhrase(a: BuiltAction): string {
   return `${a.position} ${verb}${sized}`;
 }
 
-function buildText(streets: BuiltStreet[]): string {
+function buildText(streets: BuiltStreet[], boardCards: string[]): string {
   const order: Street[] = ['preflop', 'flop', 'turn', 'river'];
   const sorted = [...streets].sort(
     (a, b) => order.indexOf(a.street) - order.indexOf(b.street),
   );
   return sorted
-    .filter((s) => s.actions.length > 0 || s.board.trim())
+    .filter((s) => s.actions.length > 0)
     .map((s) => {
+      const streetBoard = boardForStreet(s.street, boardCards);
       const head =
         s.street === 'preflop'
           ? 'Preflop'
-          : `${STREET_LABELS[s.street]}${s.board.trim() ? ` (${s.board.trim()})` : ''}`;
+          : `${STREET_LABELS[s.street]}${streetBoard ? ` (${streetBoard})` : ''}`;
       const phrase = s.actions.map(actionToPhrase).join(', ');
       return `${head}: ${phrase || '—'}`;
     })
@@ -317,15 +321,32 @@ const styles = StyleSheet.create({
   },
   streetTabLabelActive: { color: '#fff' },
   streetTabLabelAdd: { color: colors.textMuted },
-  boardInput: {
+  boardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
+  },
+  boardRowLabel: {
+    color: colors.textMuted,
+    fontSize: typography.micro,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  boardRowValue: {
     color: colors.text,
     fontSize: typography.body,
+    fontWeight: '700',
+    fontFamily: 'monospace',
+  },
+  boardRowEmpty: {
+    color: colors.textDim,
+    fontSize: typography.small,
   },
   miniLabel: {
     color: colors.textMuted,

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Image,
   LayoutChangeEvent,
   Pressable,
   StyleSheet,
@@ -12,8 +11,6 @@ import { CardBack, PlayingCard } from '@/components/PlayingCard';
 import { CARD_ASPECT, parseCards } from '@/utils/cards';
 import { seatLayout, type TableState } from '@/utils/table';
 import { colors, typography } from '@/theme/colors';
-
-const LOGO = require('@/assets/table-logo.png');
 
 // Container aspect ratio (height / width). Tall enough that nine seat circles
 // fit around the rim without crowding, like a classic replayer table.
@@ -100,7 +97,9 @@ export function PokerTable({
                 ),
               )}
             </View>
-            <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+            <Text style={styles.logoText} allowFontScaling={false}>
+              BANKROLLY
+            </Text>
           </View>
 
           {/* Seats */}
@@ -216,10 +215,11 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.22)',
     backgroundColor: 'rgba(0,0,0,0.15)',
   },
-  logo: {
-    width: 96,
-    height: 30,
-    opacity: 0.6,
+  logoText: {
+    color: 'rgba(255,255,255,0.30)',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 4,
   },
   seat: {
     position: 'absolute',

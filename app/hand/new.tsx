@@ -5,7 +5,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActionBuilder } from '@/components/ActionBuilder';
 import { CardSelectField } from '@/components/CardSelectField';
 import { Chip } from '@/components/Chip';
-import { EquityCalculator } from '@/components/EquityCalculator';
 import { FormField } from '@/components/FormField';
 import { HandShareButton } from '@/components/HandShareButton';
 import { PokerTable } from '@/components/PokerTable';
@@ -374,6 +373,7 @@ export default function NewHandNote() {
           style={styles.multi}
         />
         <ActionBuilder
+          board={form.board}
           onApply={(text) => {
             set('actionLine', form.actionLine.trim() ? `${form.actionLine.trim()}\n${text}` : text);
           }}
@@ -387,8 +387,6 @@ export default function NewHandNote() {
           style={styles.multi}
           hint="Build above with the structured picker, or type freely here."
         />
-
-        <EquityCalculator heroCards={form.heroCards} board={form.board} holeCount={heroMax} />
 
         <FormField
           label="Result (chips / $)"

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createTableState, type TableState } from '../table';
-import { buildReplaySteps, flattenActions, parseTableState, stateAtStep } from '../replay';
+import {
+  buildReplaySteps,
+  flattenActions,
+  parseActionLine,
+  parseTableState,
+  stateAtStep,
+} from '../replay';
 import type { ActionType, Street } from '../../db/schema';
 
 /** 3-handed table: seat 0 = Hero, button on seat 2. */
@@ -95,6 +101,65 @@ describe('buildReplaySteps', () => {
     const steps = buildReplaySteps(createTableState(6), '');
     expect(steps).toHaveLength(1);
     expect(steps[0].kind).toBe('deal');
+  });
+});
+
+describe('parseActionLine', () => {
+  // createTableState(3) puts the button on seat 2: seat 0 = Hero (SB),
+  // seat 1 = BB, seat 2 = BTN.
+  const state = () => createTableState(3);
+
+  it('parses app-formatted lines into ordered actions with seat mapping', () => {
+    const text =
+      'Preflop: BTN opens 2.5, Hero (SB) 3-bets 9, BTN calls\nFlop (Ah 7d 2c): Hero (SB) bets 5, BTN folds';
+    const actions = parseActionLine(text, state());
+    expect(actions.map((a) => a.action)).toEqual(['open', '3-bet', 'call', 'bet', 'fold']);
+    expect(actions.map((a) => a.seatIndex)).toEqual([2, 0, 2, 0, 2]);
+    expect(actions.map((a) => a.street)).toEqual(['preflop', 'preflop', 'preflop', 'flop', 'flop']);
+    expect(actions[0].size).toBe('2.5');
+    expect(actions[0].phrase).toBe('BTN opens 2.5');
+  });
+
+  it('tolerates free-typed text without hyphens and unknown actors', () => {
+    const actions = parseActionLine('UTG opens 3bb, Hero 3bets 9bb, MP folds', state());
+    expect(actions.map((a) => a.action)).toEqual(['open', '3-bet', 'fold']);
+    // UTG/MP don't exist 3-handed: unmapped actors get seatIndex -1, hero maps.
+    expect(actions.map((a) => a.seatIndex)).toEqual([-1, 0, -1]);
+  });
+
+  it('skips unparseable phrases and empty input', () => {
+    expect(parseActionLine('', state())).toEqual([]);
+    expect(parseActionLine('thinking about ranges here', state())).toEqual([]);
+    expect(parseActionLine('Preflop: —', state())).toEqual([]);
+  });
+});
+
+describe('buildReplaySteps action-line fallback', () => {
+  it('replays text-only hands action by action', () => {
+    const state = createTableState(3); // no seat actions on the table
+    const text = 'Preflop: BTN opens 2.5, Hero (SB) 3-bets 9, BTN calls\nFlop: Hero (SB) bets 5, BTN folds';
+    const steps = buildReplaySteps(state, 'Ah 7d 2c', text);
+    // deal, 3 preflop actions, flop reveal, 2 flop actions
+    expect(steps.map((s) => s.kind)).toEqual([
+      'deal', 'action', 'action', 'action', 'board', 'action', 'action',
+    ]);
+    expect(steps[1].label).toBe('BTN opens 2.5');
+    expect(steps[1].actorSeat).toBe(2);
+    expect(steps[4].boardCount).toBe(3);
+    expect(steps[steps.length - 1].folded).toEqual([2]);
+  });
+
+  it('prefers table actions over the action line when both exist', () => {
+    const steps = buildReplaySteps(fixture(), 'Ah 7d 2c', 'Preflop: UTG opens 99');
+    expect(steps.some((s) => s.label.includes('99'))).toBe(false);
+    expect(steps).toHaveLength(8); // same as the table-only case
+  });
+
+  it('leaves unmapped actors without seat highlight or fold dim', () => {
+    const steps = buildReplaySteps(createTableState(3), '', 'Preflop: UTG folds');
+    const action = steps[1];
+    expect(action.actorSeat).toBeNull();
+    expect(action.folded).toEqual([]);
   });
 });
 

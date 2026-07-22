@@ -25,7 +25,7 @@ export default function HandReplayScreen() {
     [hand],
   );
   const steps = useMemo(
-    () => (tableState && hand ? buildReplaySteps(tableState, hand.board) : []),
+    () => (tableState && hand ? buildReplaySteps(tableState, hand.board, hand.actionLine) : []),
     [tableState, hand],
   );
 
